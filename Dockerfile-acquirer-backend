@@ -42,7 +42,7 @@ RUN --mount=type=cache,id=npm-acquirer-backend,target=/root/.npm,sharing=locked 
       arm64) sharp_arch=arm64 ;; \
       *) echo "Unsupported Sharp architecture: $TARGETARCH" >&2; exit 1 ;; \
     esac \
-    && npm install --ignore-scripts --no-save \
+    && npm install --ignore-scripts --no-save --force \
       "@img/sharp-linuxmusl-${sharp_arch}@${SHARP_VERSION}" \
       "@img/sharp-libvips-linuxmusl-${sharp_arch}@${SHARP_LIBVIPS_VERSION}"
 

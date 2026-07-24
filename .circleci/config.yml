@@ -31,14 +31,11 @@ defaults_license_scanner: &defaults_license_scanner
     cd /tmp/license-scanner && make build default-files set-up
 
 defaults_docker_Dependencies: &defaults_docker_Dependencies |
-  apk --no-cache add bash
-  apk --no-cache add git
-  apk --no-cache add ca-certificates
-  apk --no-cache add curl
-  apk --no-cache add openssh-client
-  apk --no-cache add -t build-dependencies make gcc g++ python3 libtool autoconf automake jq
-  apk --no-cache add -t openssl ncurses coreutils libgcc linux-headers grep util-linux binutils findutils
-  apk --no-cache add librdkafka-dev
+  sudo apt-get update
+  sudo apt-get install -y --no-install-recommends \
+    autoconf automake binutils build-essential ca-certificates coreutils curl \
+    findutils git grep jq librdkafka-dev libssl-dev libtool openssh-client \
+    python3 util-linux
 
 ## Default 'default-machine' executor dependencies
 defaults_machine_Dependencies: &defaults_machine_Dependencies |
@@ -55,79 +52,11 @@ defaults_npm_auth: &defaults_npm_auth
   name: Update NPM registry auth token
   command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
 
-defaults_configure_nvmrc: &defaults_configure_nvmrc
-  name: Configure NVMRC
-  command: |
-    if [ -z "$NVMRC_VERSION" ]; then
-      echo "==> Configuring NVMRC_VERSION!"
-
-      export ENV_DOT_PROFILE=$HOME/.profile
-      touch $ENV_DOT_PROFILE
-
-      export NVMRC_VERSION=$(cat $CIRCLE_WORKING_DIRECTORY/.nvmrc)
-      echo "export NVMRC_VERSION=$NVMRC_VERSION" >> $ENV_DOT_PROFILE
-    fi
-    echo "NVMRC_VERSION=$NVMRC_VERSION"
-
-defaults_configure_nvm: &defaults_configure_nvm
-  name: Configure NVM
-  command: |
-    cd $HOME
-    export ENV_DOT_PROFILE=$HOME/.profile
-    touch $ENV_DOT_PROFILE
-    echo "1. Check/Set NVM_DIR env variable"
-    if [ -z "$NVM_DIR" ]; then
-      export NVM_DIR="$HOME/.nvm"
-      echo "==> NVM_DIR has been exported - $NVM_DIR"
-    else
-      echo "==> NVM_DIR already exists - $NVM_DIR"
-    fi
-    echo "2. Check/Set NVMRC_VERSION env variable"
-    if [ -z "$NVMRC_VERSION" ]; then
-      echo "==> Configuring NVMRC_VERSION!"
-      export NVMRC_VERSION=$(cat $CIRCLE_WORKING_DIRECTORY/.nvmrc)
-      echo "export NVMRC_VERSION=$NVMRC_VERSION" >> $ENV_DOT_PROFILE
-    fi
-    echo "3. Configure NVM"
-    ## Lets check if an existing NVM_DIR exists, if it does lets skil
-    if [ -e "$NVM_DIR" ]; then
-      echo "==> $NVM_DIR exists. Skipping steps 3!"
-      # echo "5. Executing $NVM_DIR/nvm.sh"
-      # [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    else
-      echo "==> $NVM_DIR does not exists. Executing steps 4-5!"
-      echo "4. Installing NVM"
-      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-      echo "5. Executing $NVM_DIR/nvm.sh"
-      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    fi
-    ## Ref: https://github.com/nvm-sh/nvm/issues/1102#issuecomment-550572252
-    if [ ! -z "$NVM_ARCH_UNOFFICIAL_OVERRIDE" ]; then
-      echo "==> Handle NVM_ARCH_UNOFFICIAL_OVERRIDE=$NVM_ARCH_UNOFFICIAL_OVERRIDE!"
-      echo "nvm_get_arch() { nvm_echo \"${NVM_ARCH_UNOFFICIAL_OVERRIDE}\"; }" >> $ENV_DOT_PROFILE
-      echo "export NVM_NODEJS_ORG_MIRROR=https://unofficial-builds.nodejs.org/download/release" >> $ENV_DOT_PROFILE
-      source $ENV_DOT_PROFILE
-    fi
-    echo "6. Setup Node version"
-    if [ -n "$NVMRC_VERSION" ]; then
-      echo "==> Installing Node version: $NVMRC_VERSION"
-      nvm install $NVMRC_VERSION
-      nvm alias default $NVMRC_VERSION
-      nvm use $NVMRC_VERSION
-      cd $CIRCLE_WORKING_DIRECTORY
-    else
-      echo "==> ERROR - NVMRC_VERSION has not been set! - NVMRC_VERSION: $NVMRC_VERSION"
-      exit 1
-    fi
-
 defaults_display_versions: &defaults_display_versions
   name: Display Versions
   command: |
-    echo "What is the active version of Nodejs?"
     echo "node: $(node --version)"
-    echo "yarn: $(yarn --version)"
     echo "npm: $(npm --version)"
-    echo "nvm: $(nvm --version)"
 
 ##
 # Executors
@@ -139,18 +68,13 @@ executors:
     working_directory: &workingDirVar /home/circleci/project
     docker:
       # Primary container
-      - image: mojaloop/node-18-builder:0.0.3
+      - image: cimg/node:24.18.0
       # Secondary containers for e2e tests
       - image: minio/minio:RELEASE.2023-07-21T21-12-44Z
         environment:
           MINIO_ACCESS_KEY: minioadmin
           MINIO_SECRET_KEY: minioadmin
         command: ["server", "/data"]
-      - image: rabbitmq:3.12.4-management-alpine
-        environment:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
-
   default-machine:
     machine:
       image: ubuntu-2204:2023.04.2
@@ -163,12 +87,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - node_modules-cache-{{ checksum "package.json" }}
-      - run: BUILD_LIBRDKAFKA=0 npm install
+            - node_modules-cache-{{ checksum "package-lock.json" }}
+      - run: HUSKY=0 npm ci
       - save_cache:
           paths:
             - node_modules
-          key: node_modules-cache-{{ checksum "package.json" }}
+          key: node_modules-cache-{{ checksum "package-lock.json" }}
       - persist_to_workspace:
           root: *workingDirVar
           paths:
@@ -277,19 +201,14 @@ jobs:
           at: *workingDirVar
       - run: npm run dep:check:oracle
 
-  test-unit-frontend:
+  tests-acquirer-frontend:
     executor: default-docker
     steps:
       - attach_workspace:
           at: *workingDirVar
       - run:
-          name: Execute unit tests
+          name: Execute frontend tests
           command: npm run test:unit:frontend
-      # store workspace for the coverage-report step
-      # - persist_to_workspace:
-      #     root: *workingDirVar
-      #     paths:
-      #       - .
 
   tests-acquirer-backend:
     executor: default-docker
@@ -297,13 +216,8 @@ jobs:
       - attach_workspace:
           at: *workingDirVar
       - run:
-          name: Execute unit tests
-          command: npm run acquirer-backend:test:coverage
-      # store workspace for the coverage-report step
-      # - persist_to_workspace:
-      #     root: *workingDirVar
-      #     paths:
-      #       - .
+          name: Execute backend tests
+          command: npm run acquirer-backend:test
 
   tests-oracle:
     executor: default-docker
@@ -311,30 +225,8 @@ jobs:
       - attach_workspace:
           at: *workingDirVar
       - run:
-          name: Execute unit tests
-          command: npm run oracle:test:coverage
-      # store workspace for the coverage-report step
-      # - persist_to_workspace:
-      #     root: *workingDirVar
-      #     paths:
-      #       - .
-
-  coverage-report:
-    executor: default-docker
-    steps:
-      - attach_workspace:
-          at: *workingDirVar
-      - run:
-          name: Ensure coverage directory exists (FIXME find better way)
-          command: mkdir -p ./coverage
-      - run:
-          name: Merge json coverage files
-          command: npm run coverage:merge
-      - run:
-          name: Generate coverage report
-          command: npm run coverage:gen-report
-      - store_artifacts:
-          path: coverage
+          name: Execute registry oracle tests
+          command: npm run oracle:test
 
   publish:
     executor: default-machine
@@ -365,8 +257,6 @@ jobs:
           name: Install general dependencies
           command: *defaults_docker_Dependencies
       - checkout
-      - run:
-          <<: *defaults_configure_nvm
       - run:
           <<: *defaults_display_versions
       - restore_cache:
@@ -476,7 +366,7 @@ workflows:
           requires:
             - setup
 
-      - test-unit-frontend:
+      - tests-acquirer-frontend:
           context: org-global
           requires:
             - setup
@@ -491,7 +381,7 @@ workflows:
             - build
             - tests-acquirer-backend
             - tests-oracle
-            - test-unit-frontend
+            - tests-acquirer-frontend
 
             - lint-check-acquirer-backend
             - lint-check-acquirer-frontend

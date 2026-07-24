@@ -26,6 +26,12 @@ export const businessInfoSchema = z
       .string()
       .trim()
       .min(1, { message: 'Please select a merchant category' }),
+    mcc: z
+      .string()
+      .trim()
+      .regex(/^\d{4}$/, { message: 'MCC must contain exactly 4 digits' })
+      .or(z.literal(''))
+      .optional(),
     merchant_type: z.nativeEnum(MerchantType, {
       errorMap: () => ({ message: 'Please select a merchant type' }),
     }),

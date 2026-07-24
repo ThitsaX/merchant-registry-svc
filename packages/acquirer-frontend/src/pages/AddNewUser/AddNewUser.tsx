@@ -6,11 +6,12 @@ import { useForm } from 'react-hook-form'
 import { PortalUserType } from 'shared-lib'
 
 import type { Role } from '@/types/roles'
+import type { TemporaryPasswordResponse } from '@/types/users'
 import { addNewUserSchema, type AddNewUserForm } from '@/lib/validations/addNewUser'
 import { useDfsps } from '@/api/hooks/dfsps'
 import { useRoles } from '@/api/hooks/roles'
 import { useCreateUser, useUserProfile } from '@/api/hooks/users'
-import { CustomButton, Skeleton } from '@/components/ui'
+import { CustomButton, Skeleton, TemporaryPasswordModal } from '@/components/ui'
 import { FormInput, FormSelect } from '@/components/form'
 
 const AddNewUser = () => {
@@ -25,6 +26,9 @@ const AddNewUser = () => {
   })
 
   const [showDfspDropdown, setShowDfspDropdown] = useState(false)
+  const [createdUser, setCreatedUser] = useState<TemporaryPasswordResponse | null>(
+    null
+  )
 
   useEffect(() => {
     const subscription = watch((value, { name }) => {
@@ -71,7 +75,8 @@ const AddNewUser = () => {
   }
 
   const onSubmit = async (values: AddNewUserForm) => {
-    await createUser.mutateAsync(values)
+    const result = await createUser.mutateAsync(values)
+    setCreatedUser(result)
     reset()
   }
 
@@ -161,6 +166,19 @@ const AddNewUser = () => {
             </CustomButton>
           </HStack>
         </Stack>
+      )}
+
+      {createdUser && (
+        <TemporaryPasswordModal
+          isOpen={true}
+          userEmail={createdUser.data.email}
+          temporaryPassword={createdUser.temporaryPassword}
+          emailDelivery={createdUser.emailDelivery}
+          onClose={() => {
+            setCreatedUser(null)
+            navigate('/portal-user-management/user-management')
+          }}
+        />
       )}
     </Box>
   )

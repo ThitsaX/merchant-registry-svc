@@ -4,19 +4,16 @@ import { vi } from 'vitest'
 import TestWrapper from '@/__tests__/TestWrapper'
 import ReviewModal from './ReviewModal'
 
+const mockChangeStatusToReview = vi.fn()
 const mockDraft = vi.fn()
 vi.mock('@/api/hooks/forms', () => ({
   useDraft: () => mockDraft(),
   useChangeStatusToReview: () => ({
-    mutate: () => vi.fn(),
+    mutate: mockChangeStatusToReview,
   }),
 }))
 
 describe('ReviewModal', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('should render skeleton when the draft is loading', () => {
     mockDraft.mockReturnValue({ isLoading: true })
 
@@ -43,7 +40,6 @@ describe('ReviewModal', () => {
 
   it('should call "changeStatusToReview.mutate" function when "Submit" button is clicked', () => {
     mockDraft.mockReturnValue({ isLoading: false })
-    const chageStatusSpy = vi.spyOn(vi, 'fn')
 
     render(
       <TestWrapper>
@@ -54,6 +50,6 @@ describe('ReviewModal', () => {
     const submitButton = screen.getByText('Submit')
     fireEvent.click(submitButton)
 
-    expect(chageStatusSpy).toHaveBeenCalled()
+    expect(mockChangeStatusToReview).toHaveBeenCalledWith('1')
   })
 })

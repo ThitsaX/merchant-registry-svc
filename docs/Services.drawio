@@ -55,14 +55,11 @@
             <mxPoint x="508" y="130" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="I97RSEOGLLJC8uO0pdep-22" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="I97RSEOGLLJC8uO0pdep-11" target="I97RSEOGLLJC8uO0pdep-16" edge="1">
+        <mxCell id="I97RSEOGLLJC8uO0pdep-22" value="Authenticated HTTP" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="I97RSEOGLLJC8uO0pdep-11" target="I97RSEOGLLJC8uO0pdep-16" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="530" y="420" as="sourcePoint" />
             <mxPoint x="580" y="370" as="targetPoint" />
           </mxGeometry>
-        </mxCell>
-        <mxCell id="I97RSEOGLLJC8uO0pdep-21" value="RabbitMQ" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="540" y="260" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="I97RSEOGLLJC8uO0pdep-26" value="" style="group" parent="1" vertex="1" connectable="0">
           <mxGeometry x="626" y="410" width="280" height="200" as="geometry" />

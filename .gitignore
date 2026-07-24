@@ -1,3 +1,12 @@
 node_modules/
+*.tsbuildinfo
 .DS_Store
 helms/charts/*.tgz
+
+# Local runtime configuration and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+!.env.test
+!**/.env.test

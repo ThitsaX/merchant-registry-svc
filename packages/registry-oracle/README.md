@@ -7,7 +7,8 @@
 ## Run with
 
 1. `npm install`
-2. `npm run start` when you are inside `<rootProject>/packages/registry-oracle`
+2. `cp .env.example .env` and replace the placeholder secrets.
+3. `npm run start` when you are inside `<rootProject>/packages/registry-oracle`
    or
    <br />
    `npm run registry-oracle:start` when you are at `rootProject` directory.
@@ -25,12 +26,8 @@
 | `DB_USERNAME`                        | `registry_oracle_user`     | Username for MySQL database authentication.                                                                                |
 | `DB_PASSWORD`                        | `password`                 | Password for MySQL database authentication.                                                                                |
 | `DB_DATABASE`                        | `merchant_registry_oracle` | Name of the database to use in MySQL.                                                                                      |
-| **RabbitMQ Configuration**           |                            |                                                                                                                            |
-| `RABBITMQ_HOST`                      | `127.0.0.1`                | Hostname or IP address of the RabbitMQ server.                                                                             |
-| `RABBITMQ_PORT`                      | `5672`                     | Port number for the RabbitMQ server.                                                                                       |
-| `RABBITMQ_USERNAME`                  | `guest`                    | Username for RabbitMQ server authentication. _(Change in production)_                                                      |
-| `RABBITMQ_PASSWORD`                  | `guest`                    | Password for RabbitMQ server authentication. _(Change in production)_                                                      |
-| `RABBITMQ_QUEUE`                     | `acquirer_to_registry`     | Name of the RabbitMQ queue to use.                                                                                         |
+| **Internal HTTP API Configuration**  |                            |                                                                                                                            |
+| `REGISTRY_INTERNAL_API_KEY`          | _(required)_               | Shared secret used to authenticate Acquirer Backend requests. Use a strong secret in production.                           |
 | **Alias Generation Configuration**   |                            |                                                                                                                            |
 | `ALIAS_CHECKOUT_MAX_DIGITS`          | `6`                        | Maximum number of digits for alias checkout.                                                                               |
 | **API Key Generation Configuration** |                            |                                                                                                                            |

@@ -10,6 +10,10 @@ const Layout = () => {
 
   if (isTokenExpired(token)) return <Navigate to='/login' replace />
 
+  if (localStorage.getItem('mustChangePassword') === 'true') {
+    return <Navigate to='/change-password' replace />
+  }
+
   return (
     <Stack spacing='0'>
       <Header />

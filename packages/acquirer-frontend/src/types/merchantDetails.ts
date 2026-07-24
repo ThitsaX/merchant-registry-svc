@@ -108,6 +108,7 @@ export interface MerchantDetails {
   employees_num: NumberOfEmployees
   monthly_turnover: string
   merchant_type: MerchantType
+  mcc?: string | null
   category_code: CategoryCode
   currency_code: CurrencyCode
   allow_block_status: string

@@ -7,7 +7,7 @@ import { DFSPEntity } from '../../entity/DFSPEntity'
 import { generateApiKey } from '../../utils/utils'
 import { audit } from '../../utils/audit'
 import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
-import { publishToQueue } from '../../services/messageQueue'
+import { registerDFSPWithRegistry } from '../../services/registryOracleClient'
 
 /**
  * @openapi
@@ -96,6 +96,7 @@ export async function createClientAccessKey (req: AuthRequest, res: Response) {
       return res.status(404).send({ message: 'DFSP not found' })
     }
 
+    const previousClientSecret = dfsp.client_secret
     dfsp.client_secret = clientSecretKey
     await DFSPRepository.save(dfsp)
 
@@ -104,7 +105,13 @@ export async function createClientAccessKey (req: AuthRequest, res: Response) {
       dfsp_name: dfsp.name,
       client_secret: dfsp.client_secret
     }
-    await publishToQueue({ command: 'registerEndpointDFSP', data: DFSPMsgQueueData })
+    try {
+      await registerDFSPWithRegistry(DFSPMsgQueueData)
+    } catch (error) {
+      dfsp.client_secret = previousClientSecret
+      await DFSPRepository.save(dfsp)
+      throw error
+    }
 
     await audit(
       AuditActionType.UPDATE,

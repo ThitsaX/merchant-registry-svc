@@ -2,6 +2,7 @@ import AddNewUser from './AddNewUser/AddNewUser'
 import AliasGeneratedMerchantRecords from './AliasGeneratedMerchantRecords/AliasGeneratedMerchantRecords'
 import AllMerchantRecords from './AllMerchantRecords/AllMerchantRecords'
 import AuditLog from './AuditLog/AuditLog'
+import ChangePassword from './ChangePassword/ChangePassword'
 import Dfsps from './Dfsps/Dfsps'
 import DraftApplications from './DraftApplications/DraftApplications'
 import ForgotPassword from './ForgotPassword/ForgotPassword'
@@ -34,4 +35,5 @@ export {
   OnboardDfsp,
   SetPassword,
   ForgotPassword,
+  ChangePassword,
 }

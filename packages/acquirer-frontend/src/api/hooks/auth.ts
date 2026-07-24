@@ -7,7 +7,13 @@ import { PortalUserType } from 'shared-lib'
 
 import { FALLBACK_ERROR_MESSAGE } from '@/constants/errorMessage'
 import { NAV_ITEMS, useNavItems } from '@/contexts/NavItemsContext'
-import { forgotPassword, login, logout, setPassword } from '../auth'
+import {
+  changePassword,
+  forgotPassword,
+  login,
+  logout,
+  setPassword,
+} from '../auth'
 import { getUserProfile } from '../users'
 
 export function useLogin(recaptchaRef: React.RefObject<ReCAPTCHA>) {
@@ -28,7 +34,18 @@ export function useLogin(recaptchaRef: React.RefObject<ReCAPTCHA>) {
       return login(email, password, recaptchaToken)
     },
     onSuccess: async data => {
-      localStorage.setItem('token', data)
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('mustChangePassword', String(data.mustChangePassword))
+
+      if (data.mustChangePassword) {
+        navigate('/change-password')
+        toast({
+          title: 'Password Change Required',
+          description: 'Replace your temporary password to continue.',
+          status: 'info',
+        })
+        return
+      }
 
       const userProfile = await getUserProfile()
       // Remove navigation item from sidebar if the user doesn't have the required permissions
@@ -101,6 +118,7 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.clear()
       localStorage.removeItem('token')
+      localStorage.removeItem('mustChangePassword')
 
       navigate('/login')
       toast({
@@ -113,9 +131,46 @@ export function useLogout() {
       if (isAxiosError(error)) {
         queryClient.invalidateQueries({ queryKey: ['users', 'profile'] })
         localStorage.removeItem('token')
+        localStorage.removeItem('mustChangePassword')
         toast({
           title: 'Logout Failed!',
           description: error.response?.data.message || 'Logout Failed. Please try again.',
+          status: 'error',
+        })
+      }
+    },
+  })
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string
+      newPassword: string
+    }) => changePassword(currentPassword, newPassword),
+    onSuccess: () => {
+      queryClient.clear()
+      localStorage.removeItem('token')
+      localStorage.removeItem('mustChangePassword')
+      navigate('/login')
+      toast({
+        title: 'Password Changed',
+        description: 'Log in again using your new password.',
+        status: 'success',
+      })
+    },
+    onError: error => {
+      if (isAxiosError(error)) {
+        toast({
+          title: 'Password Change Failed!',
+          description: error.response?.data.message || FALLBACK_ERROR_MESSAGE,
           status: 'error',
         })
       }

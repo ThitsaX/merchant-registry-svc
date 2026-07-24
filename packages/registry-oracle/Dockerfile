@@ -1,27 +1,50 @@
+# syntax=docker/dockerfile:1.7
 
-# Use an official Node runtime as the base image
-FROM node:18.16-alpine3.18
-
-RUN apk add --no-cache mysql-client curl
-
-# Set the working directory in the container
+FROM node:24.18.0-alpine AS build
 WORKDIR /app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json and package-lock.json are copied
-COPY package*.json ./
+COPY package.json package-lock.json ./
+COPY packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY packages/registry-oracle/package.json ./packages/registry-oracle/package.json
 
-COPY packages/shared-lib/package*.json ./packages/shared-lib/
-COPY packages/acquirer-backend/package*.json ./packages/acquirer-backend/
-COPY packages/acquirer-frontend/package*.json ./packages/acquirer-frontend/
-COPY packages/registry-oracle/package*.json ./packages/registry-oracle/
+RUN --mount=type=cache,target=/root/.npm \
+    HUSKY=0 npm ci \
+      --workspace shared-lib \
+      --workspace @mojaloop/merchant-registry-oracle
 
-RUN npm i
+COPY packages/shared-lib/tsconfig.json ./packages/shared-lib/tsconfig.json
+COPY packages/shared-lib/src ./packages/shared-lib/src
+COPY packages/registry-oracle/tsconfig.json packages/registry-oracle/tsconfig.build.json ./packages/registry-oracle/
+COPY packages/registry-oracle/src ./packages/registry-oracle/src
 
-#  Copy all even although will not be using frontend in this container
-COPY . .
+RUN npm run build --workspace shared-lib \
+    && npm run build --workspace @mojaloop/merchant-registry-oracle
 
+FROM node:24.18.0-alpine AS production-dependencies
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY packages/registry-oracle/package.json ./packages/registry-oracle/package.json
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --omit=optional --ignore-scripts \
+      --workspace shared-lib \
+      --workspace @mojaloop/merchant-registry-oracle \
+    && npm rebuild bcrypt
+
+FROM node:24.18.0-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY --from=build --chown=node:node /app/packages/shared-lib/dist ./packages/shared-lib/dist
+COPY --from=build --chown=node:node /app/packages/registry-oracle/package.json ./packages/registry-oracle/package.json
+COPY --from=build --chown=node:node /app/packages/registry-oracle/dist ./packages/registry-oracle/dist
+
+RUN mkdir -p /app/logs && chown node:node /app/logs
+
+USER node
 EXPOSE 8888
-
-# Run the app when the container launches
-CMD [ "npm", "run", "registry-oracle:start" ]
+CMD ["node", "packages/registry-oracle/dist/src/index.js"]

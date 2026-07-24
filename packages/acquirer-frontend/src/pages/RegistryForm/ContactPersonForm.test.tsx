@@ -153,9 +153,7 @@ describe('ContactPersonForm', () => {
     fireEvent.change(phoneNumberInput, { target: { value: '932-555-4213' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['createContactPerson'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('createContactPerson'))
   })
 
   it('should call "updateContactPerson.mutate" when it is a draft', async () => {
@@ -171,9 +169,7 @@ describe('ContactPersonForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Review Submission')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['updateContactPerson'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('updateContactPerson'))
   })
 
   it('should show an error toast when the merchantId is not found', async () => {
@@ -189,8 +185,6 @@ describe('ContactPersonForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Review Submission')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['toast'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('toast'))
   })
 })

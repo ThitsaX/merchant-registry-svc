@@ -14,6 +14,7 @@ export interface IMerchantSubmitData {
   // checked_by: number; // will be set by the backend
   currency_code: string
   category_code: string
+  mcc?: string
   payinto_alias?: string // Will create a new CheckoutCounterEntity if provided.
   locations?: number[]
   // checkout_counters?: number[]

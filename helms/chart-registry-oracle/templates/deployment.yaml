@@ -31,12 +31,5 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-{{ .Values.registryOracle.env.dbPasswordSecret.name }}
                   key: {{ .Values.registryOracle.env.dbPasswordSecret.key }}
-            - name: RABBITMQ_HOST
-              value: "{{ .Release.Name }}-{{ .Values.registryOracle.env.rabbitmqHost }}"
-            - name: RABBITMQ_PORT
-              value: "{{ .Values.registryOracle.env.rabbitmqPort }}"
-            - name: RABBITMQ_USERNAME
-              value: "{{ .Values.registryOracle.env.rabbitmqUsername }}"
-            - name: RABBITMQ_PASSWORD
-              value: "{{ .Values.registryOracle.env.rabbitmqPassword }}"
-
+            - name: REGISTRY_INTERNAL_API_KEY
+              value: "{{ .Values.registryOracle.env.registryInternalApiKey }}"

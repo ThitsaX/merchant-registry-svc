@@ -1,126 +1,83 @@
-import { BrowserRouter } from 'react-router-dom'
-import { act, render, screen } from '@testing-library/react'
-import { ErrorBoundary } from 'react-error-boundary'
-import { vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 
 import TestWrapper from '@/__tests__/TestWrapper'
-import { useNavItems } from './NavItemsContext'
-
-const mockUserProfile = vi.fn()
-vi.mock('@/api/users', () => ({
-  getUserProfile: () => Promise.resolve(mockUserProfile()),
-}))
+import {
+  filterNavItemsByPermissions,
+  default as NavItemsProvider,
+  useNavItems,
+} from './NavItemsContext'
 
 describe('NavItemsContext', () => {
   function TestComponent() {
-    const context = useNavItems()
-
-    return context ? 'Context' : null
+    return useNavItems() ? 'Context' : null
   }
 
-  function NavItems() {
-    const context = useNavItems()
-
-    return (
-      <ul>
-        {context.navItems.map(navItem => (
-          <li key={navItem.name}>{navItem.name}</li>
-        ))}
-      </ul>
-    )
-  }
-
-  it('should error when "useNavItems" hook is called outside of "NavItemsProvider"', () => {
-    const logSpy = vi.spyOn(console, 'error')
-
-    render(
-      <BrowserRouter>
-        <ErrorBoundary
-          fallback={<div>Something went wrong.</div>}
-          onError={error => console.error(error.message)}
-        >
-          <TestComponent />
-        </ErrorBoundary>
-      </BrowserRouter>
-    )
-
-    expect(screen.getByText('Something went wrong.')).toBeInTheDocument()
-    expect(logSpy).toHaveBeenCalledWith(
-      '`useNavItems` hook must be called inside `NavItemsProvider`'
-    )
-  })
-
-  it('should return context when "useNavItems" hook is called inside "NavItemsProvider"', () => {
+  it('returns context inside NavItemsProvider', () => {
     render(
       <TestWrapper>
-        <TestComponent />
+        <NavItemsProvider>
+          <TestComponent />
+        </NavItemsProvider>
       </TestWrapper>
     )
 
     expect(screen.getByText('Context')).toBeInTheDocument()
   })
+})
 
-  it('should restrict "Portal User Management" and "Audit Log" route when the user is operator', async () => {
-    mockUserProfile.mockReturnValue({
-      id: 7,
-      name: 'DFSP 1 Operator 1',
-      role: {
-        name: 'DFSP Operator',
-      },
-    })
-    Storage.prototype.getItem = () => 'token'
-
-    await act(async () =>
-      render(
-        <TestWrapper>
-          <NavItems />
-        </TestWrapper>
-      )
+describe('filterNavItemsByPermissions', () => {
+  it.each<{
+    role: string
+    permissions: string[]
+    routes: string[]
+    portalRoutes?: string[]
+  }>([
+    {
+      role: 'operator',
+      permissions: ['Create Merchants', 'View Merchants', 'View Portal Users'],
+      routes: ['Registry', 'Merchant Records', 'Portal User Management'],
+      portalRoutes: ['User Management'],
+    },
+    {
+      role: 'auditor',
+      permissions: ['View Merchants', 'View Portal Users', 'View Audit Logs'],
+      routes: ['Merchant Records', 'Portal User Management', 'Audit Log'],
+      portalRoutes: ['User Management'],
+    },
+    {
+      role: 'admin',
+      permissions: [
+        'Create DFSPs',
+        'View DFSPs',
+        'Create Merchants',
+        'View Merchants',
+        'View Portal Users',
+        'View Roles',
+        'View Audit Logs',
+      ],
+      routes: [
+        'Onboarding DFSP',
+        'DFSP List',
+        'Registry',
+        'Merchant Records',
+        'Portal User Management',
+        'Audit Log',
+      ],
+      portalRoutes: ['Role Management', 'User Management'],
+    },
+  ])('returns only routes allowed for a $role', ({ permissions, routes, portalRoutes }) => {
+    const navItems = filterNavItemsByPermissions(permissions)
+    const portalUserManagement = navItems.find(
+      item => item.name === 'Portal User Management'
     )
 
-    expect(screen.queryByText('Portal User Management')).toBeNull()
-    expect(screen.queryByText('Audit Log')).toBeNull()
+    expect(navItems.map(item => item.name)).toEqual(routes)
+    expect(portalUserManagement?.subNavItems?.map(item => item.name)).toEqual(
+      portalRoutes
+    )
   })
 
-  it('should restrict "Portal User Management" and "Audit Log" route when the user is auditor', async () => {
-    mockUserProfile.mockReturnValue({
-      id: 9,
-      name: 'DFSP 1 Auditor 1',
-      role: {
-        name: 'DFSP Auditor',
-      },
-    })
-    Storage.prototype.getItem = () => 'token'
-
-    await act(async () =>
-      render(
-        <TestWrapper>
-          <NavItems />
-        </TestWrapper>
-      )
-    )
-
-    expect(screen.queryByText('Portal User Management')).toBeNull()
-    expect(screen.queryByText('Audit Log')).toBeNull()
-  })
-
-  it('should have access to all routes when the user is not operator or auditor', () => {
-    mockUserProfile.mockReturnValue({
-      id: 5,
-      name: 'DFSP 1 Admin 1',
-      role: {
-        name: 'DFSP Admin',
-      },
-    })
-    Storage.prototype.getItem = () => 'token'
-
-    render(
-      <TestWrapper>
-        <NavItems />
-      </TestWrapper>
-    )
-
-    expect(screen.getByText('Portal User Management')).toBeInTheDocument()
-    expect(screen.getByText('Audit Log')).toBeInTheDocument()
+  it('returns no routes without permissions', () => {
+    expect(filterNavItemsByPermissions([])).toEqual([])
   })
 })

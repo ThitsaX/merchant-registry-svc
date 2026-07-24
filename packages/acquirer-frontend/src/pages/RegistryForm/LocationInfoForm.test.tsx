@@ -182,9 +182,7 @@ describe('ContactPersonForm', () => {
     fireEvent.change(locationTypeInput, { target: { value: 'Virtual' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['createLocationInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('createLocationInfo'))
   })
 
   it('should call "updateLocationInfo.mutate" when it is a draft', async () => {
@@ -200,9 +198,7 @@ describe('ContactPersonForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['updateLocationInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('updateLocationInfo'))
   })
 
   it('should show an error toast when the merchantId is not found', async () => {
@@ -218,9 +214,7 @@ describe('ContactPersonForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['toast'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('toast'))
   })
 })
 

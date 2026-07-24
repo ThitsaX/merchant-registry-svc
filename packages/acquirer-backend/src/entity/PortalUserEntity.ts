@@ -14,6 +14,9 @@ export class PortalUserEntity extends PersonEntity {
   @Column({ nullable: true, length: 2048 })
     password!: string
 
+  @Column({ nullable: false, default: false })
+    must_change_password!: boolean
+
   @Column({
     type: 'simple-enum',
     enum: PortalUserType,

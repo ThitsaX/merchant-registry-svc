@@ -5,146 +5,92 @@ import { vi } from 'vitest'
 import TestWrapper from '@/__tests__/TestWrapper'
 import FileUploadModal from './FileUploadModal'
 
-const fn = vi.fn()
+const onClose = vi.fn()
+const openFileInput = vi.fn()
+const setFile = vi.fn()
+const setIsUploading = vi.fn()
+
+const renderModal = () =>
+  render(
+    <TestWrapper>
+      <FileUploadModal
+        isOpen
+        onClose={onClose}
+        isUploading
+        setIsUploading={setIsUploading}
+        openFileInput={openFileInput}
+        setFile={setFile}
+      />
+    </TestWrapper>
+  )
 
 describe('FileUploadModal', () => {
   afterEach(() => {
-    fn.mockClear()
+    vi.useRealTimers()
   })
 
-  it('should set isUploading to false when uploadProgress is 100', async () => {
+  it('stops uploading when progress reaches 100', () => {
     vi.useFakeTimers()
-
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
+    renderModal()
 
     act(() => {
       vi.advanceTimersByTime(1500)
     })
 
-    expect(fn.mock.calls[0]).toEqual([false])
+    expect(setIsUploading).toHaveBeenCalledWith(false)
   })
 
-  it('should reset upload states when the modal is closed', async () => {
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
+  it('resets upload state when the modal is closed', () => {
+    renderModal()
 
-    const closeButton = screen.getByLabelText('Close')
-    fireEvent.click(closeButton)
+    fireEvent.click(screen.getByLabelText('Close'))
 
-    expect(fn.mock.calls[0]).toEqual([false])
+    expect(setIsUploading).toHaveBeenCalledWith(false)
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('should reset upload states when the "Submit" button is clicked', async () => {
+  it('resets upload state when Submit is clicked', () => {
     vi.useFakeTimers()
-
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
+    renderModal()
 
     act(() => {
       vi.advanceTimersByTime(1500)
     })
+    fireEvent.click(screen.getByText('Submit'))
 
-    const submitButton = screen.getByText('Submit')
-    fireEvent.click(submitButton)
-
-    expect(fn.mock.calls[0]).toEqual([false])
+    expect(setIsUploading).toHaveBeenCalledWith(false)
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('should reset upload states and update file when a new file is dropped in the dropzone', () => {
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
-
-    const file = { name: 'License Document', type: 'application/pdf' }
+  it('accepts a dropped PDF and starts uploading it', () => {
+    renderModal()
+    const file = new File(['pdf'], 'license.pdf', { type: 'application/pdf' })
 
     fireEvent.drop(screen.getByTestId('dropzone'), {
       dataTransfer: { files: [file] },
     })
 
-    expect(fn.mock.calls[0]).toEqual([false])
-    expect(fn.mock.calls[1]).toEqual([file])
-    expect(fn.mock.calls[2]).toEqual([true])
+    expect(setIsUploading).toHaveBeenNthCalledWith(1, false)
+    expect(setFile).toHaveBeenCalledWith(file)
+    expect(setIsUploading).toHaveBeenNthCalledWith(2, true)
   })
 
-  it('should only reset upload states and not update file when the file type is not pdf', () => {
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
-
-    const file = { name: 'License Document', type: 'image/png' }
+  it('rejects a dropped file with the wrong type', () => {
+    renderModal()
+    const file = new File(['image'], 'license.png', { type: 'image/png' })
 
     fireEvent.drop(screen.getByTestId('dropzone'), {
       dataTransfer: { files: [file] },
     })
 
-    expect(fn.mock.calls[0]).toEqual([false])
-    expect(fn.mock.calls[1]).toEqual(undefined)
+    expect(setIsUploading).toHaveBeenCalledWith(false)
+    expect(setFile).not.toHaveBeenCalled()
   })
 
-  it('should apply dragging-over class when the dropzone is entered', () => {
-    render(
-      <TestWrapper>
-        <FileUploadModal
-          isOpen
-          onClose={fn}
-          isUploading
-          setIsUploading={fn}
-          openFileInput={fn}
-          setFile={fn}
-        />
-      </TestWrapper>
-    )
-
+  it('shows the drag-over state', () => {
+    renderModal()
     const dropzone = screen.getByTestId('dropzone')
+
     fireEvent.dragEnter(dropzone)
 
     expect(dropzone).toHaveClass('dragging-over')

@@ -4,6 +4,14 @@ import { PermissionsEnum } from '../types/permissions'
 import { audit } from '../utils/audit'
 import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 
+export const roleCreationPermissions: Record<string, PermissionsEnum> = {
+  'Hub Super Admin': PermissionsEnum.CREATE_HUB_SUPER_ADMIN,
+  'Hub Admin': PermissionsEnum.CREATE_HUB_ADMIN,
+  'DFSP Admin': PermissionsEnum.CREATE_DFSP_ADMIN,
+  'DFSP Operator': PermissionsEnum.CREATE_DFSP_OPERATOR,
+  'DFSP Auditor': PermissionsEnum.CREATE_DFSP_AUDITOR
+}
+
 export function checkUserCreationPermission () {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     const portalUser = req.user
@@ -11,15 +19,6 @@ export function checkUserCreationPermission () {
 
     if (portalUser == null || portalUser === undefined) {
       return res.status(401).send({ message: 'Unauthorized' })
-    }
-
-    const roleCreationPermissions: any = {
-      'Hub Super Admin': PermissionsEnum.CREATE_HUB_SUPER_ADMIN,
-      'Hub Admin': PermissionsEnum.CREATE_HUB_ADMIN,
-
-      'DFSP Admin': PermissionsEnum.CREATE_DFSP_ADMIN,
-      'DFSP Operator': PermissionsEnum.CREATE_DFSP_OPERATOR,
-      'DFSP Auditor': PermissionsEnum.CREATE_DFSP_AUDITOR
     }
 
     const requiredPermission = roleCreationPermissions[roleToCreate]

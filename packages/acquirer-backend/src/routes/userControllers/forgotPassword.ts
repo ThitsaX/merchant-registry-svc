@@ -8,11 +8,12 @@ import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 import { type AuthRequest } from '../../types/express'
 import { PortalUserEntity } from '../../entity/PortalUserEntity'
 import { readEnv } from '../../setup/readEnv'
-import { sendForgotPasswordEmail } from '../../utils/sendGrid'
 import { JwtTokenEntity } from '../../entity/JwtTokenEntity'
 import { EmailVerificationTokenEntity } from '../../entity/EmailVerificationToken'
+import { getEmailProvider } from '../../services/email'
 
 const JWT_SECRET = readEnv('JWT_SECRET', 'secret') as string
+const FRONTEND_SET_PASSWORD_URL = readEnv('FRONTEND_SET_PASSWORD_URL', '') as string
 
 /**
  * @openapi
@@ -62,6 +63,23 @@ export async function postUserForgotPassword (req: AuthRequest, res: Response) {
   const { email } = req.body
 
   try {
+    let emailProvider
+    try {
+      emailProvider = getEmailProvider()
+    } catch (error: any) {
+      return res.status(503).send({
+        code: 'EMAIL_UNAVAILABLE',
+        message: error.message
+      })
+    }
+
+    if (!emailProvider.enabled) {
+      return res.status(503).send({
+        code: 'EMAIL_DISABLED',
+        message: 'Email password recovery is unavailable. Contact your administrator.'
+      })
+    }
+
     const forgottenPwdUser = await AppDataSource.manager.findOne(PortalUserEntity, {
       where: { email },
       relations: ['role']
@@ -70,11 +88,13 @@ export async function postUserForgotPassword (req: AuthRequest, res: Response) {
       return res.status(404).send({ message: 'Email Not Found' })
     }
 
-    await AppDataSource.manager.transaction(async (transactionalEntityManager) => {
-      await transactionalEntityManager.save(forgottenPwdUser)
-      // Generate Token using jwt
-      const token = jwt.sign({ id: forgottenPwdUser.id, email: forgottenPwdUser.email }, JWT_SECRET, { expiresIn: '1h' })
+    const token = jwt.sign(
+      { id: forgottenPwdUser.id, email: forgottenPwdUser.email },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    )
 
+    await AppDataSource.manager.transaction(async (transactionalEntityManager) => {
       const jwtTokenObj = transactionalEntityManager.create(JwtTokenEntity, {
         token,
         user: forgottenPwdUser,
@@ -88,9 +108,12 @@ export async function postUserForgotPassword (req: AuthRequest, res: Response) {
         token,
         email: forgottenPwdUser.email
       })
+    })
 
-      // Send Email with token
-      await sendForgotPasswordEmail(forgottenPwdUser.email, token)
+    const resetUrl = `${FRONTEND_SET_PASSWORD_URL}?token=${encodeURIComponent(token)}`
+    await emailProvider.sendPasswordReset({
+      to: forgottenPwdUser.email,
+      resetUrl
     })
 
     await audit(
@@ -118,6 +141,6 @@ export async function postUserForgotPassword (req: AuthRequest, res: Response) {
     )
 
     logger.error('%s', error.message)
-    return res.status(500).send({ message: error.message })
+    return res.status(502).send({ message: error.message })
   }
 }

@@ -1,26 +1,74 @@
-# Use an official Node runtime as the base image
-FROM node:18.16-alpine3.18
+# syntax=docker/dockerfile:1.7
 
-RUN apk add --no-cache mysql-client curl
-
-# Set the working directory in the container
+FROM node:24.18.0-alpine AS build
 WORKDIR /app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json and package-lock.json are copied
-COPY package*.json ./
+COPY package.json package-lock.json ./
+COPY packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY packages/acquirer-backend/package.json ./packages/acquirer-backend/package.json
 
-COPY packages/shared-lib/package*.json ./packages/shared-lib/
-COPY packages/acquirer-backend/package*.json ./packages/acquirer-backend/
-# COPY packages/acquirer-frontend/package*.json ./packages/acquirer-frontend/
-# COPY packages/registry-oracle/package*.json ./packages/registry-oracle/
+RUN --mount=type=cache,target=/root/.npm \
+    HUSKY=0 npm ci \
+      --workspace shared-lib \
+      --workspace @mojaloop/merchant-acquirer-backend
 
-RUN npm i
+COPY packages/shared-lib/tsconfig.json ./packages/shared-lib/tsconfig.json
+COPY packages/shared-lib/src ./packages/shared-lib/src
+COPY packages/acquirer-backend/tsconfig.json packages/acquirer-backend/tsconfig.build.json ./packages/acquirer-backend/
+COPY packages/acquirer-backend/src ./packages/acquirer-backend/src
+COPY packages/acquirer-backend/assets ./packages/acquirer-backend/assets
 
-#  Copy all even although will not be using frontend in this container
-COPY . .
+RUN npm run build --workspace shared-lib \
+    && npm run build --workspace @mojaloop/merchant-acquirer-backend
 
+FROM node:24.18.0-alpine AS sharp-dependencies
+ARG TARGETARCH
+ARG SHARP_VERSION=0.35.3
+ARG SHARP_LIBVIPS_VERSION=1.3.2
+WORKDIR /sharp
+
+RUN npm init --yes \
+    && case "$TARGETARCH" in \
+      amd64) sharp_arch=x64 ;; \
+      arm64) sharp_arch=arm64 ;; \
+      *) echo "Unsupported Sharp architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && npm install --ignore-scripts --no-save \
+      "@img/sharp-linuxmusl-${sharp_arch}@${SHARP_VERSION}" \
+      "@img/sharp-libvips-linuxmusl-${sharp_arch}@${SHARP_LIBVIPS_VERSION}"
+
+FROM node:24.18.0-alpine AS production-dependencies
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY packages/acquirer-backend/package.json ./packages/acquirer-backend/package.json
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --omit=optional --ignore-scripts \
+      --workspace shared-lib \
+      --workspace @mojaloop/merchant-acquirer-backend \
+    && npm rebuild bcrypt
+
+COPY --from=sharp-dependencies /sharp/node_modules/@img ./node_modules/@img
+
+RUN node -e "require('sharp')"
+
+FROM node:24.18.0-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=production-dependencies --chown=node:node /app/packages/acquirer-backend/node_modules ./packages/acquirer-backend/node_modules
+COPY --from=build --chown=node:node /app/packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY --from=build --chown=node:node /app/packages/shared-lib/dist ./packages/shared-lib/dist
+COPY --from=build --chown=node:node /app/packages/acquirer-backend/package.json ./packages/acquirer-backend/package.json
+COPY --from=build --chown=node:node /app/packages/acquirer-backend/dist ./packages/acquirer-backend/dist
+COPY --from=build --chown=node:node /app/packages/acquirer-backend/src/database/countries.json ./packages/acquirer-backend/dist/src/database/countries.json
+COPY --from=build --chown=node:node /app/packages/acquirer-backend/assets ./packages/acquirer-backend/dist/assets
+
+RUN mkdir -p /app/logs && chown node:node /app/logs
+
+USER node
 EXPOSE 5555
-
-# Run the app when the container launches
-CMD [ "npm", "run", "acquirer-backend:start" ]
+CMD ["node", "packages/acquirer-backend/dist/src/index.js"]

@@ -1,57 +1,124 @@
-import QRCode, { type QRCodeOptions } from 'qrcode'
+import QRCode, { type QRCodeToBufferOptions } from 'qrcode'
 import sharp from 'sharp'
 import fs from 'fs'
-import { crc16ccitt } from 'crc'
+import * as currencyCodes from 'currency-codes'
 
-export const getEMVQRCodeText = (
-  guid: string,
-  checkoutCounterAliasValue: string,
-  merchantCategoryCode: string,
-  transactionCurrency: string,
-  // transactionAmount: string,
-  countryCode: string | null | undefined,
-  merchantDBAName: string,
-  merchantCity: string | null | undefined
-): string => {
-  // Function to add data objects with automatic length calculation
-  function addDataObject (id: string, value: string): string {
-    const length = value.length.toString().padStart(2, '0')
-    return `${id}${length}${value}`
+const EMV_TEXT_PATTERN = /^[\x20-\x7E]+$/
+
+export interface EMVQRCodeData {
+  globallyUniqueIdentifier: string
+  checkoutCounterAliasValue: string
+  checkoutCounterReference?: string
+  merchantCategoryCode: string
+  transactionCurrency: string
+  countryCode: string
+  merchantName: string
+  merchantCity: string
+}
+
+function assertEMVText (field: string, value: string, maxLength: number): void {
+  if (value.length === 0) {
+    throw new Error(`${field} is required`)
+  }
+  if (value.length > maxLength) {
+    throw new Error(`${field} must not exceed ${maxLength} characters`)
+  }
+  if (!EMV_TEXT_PATTERN.test(value)) {
+    throw new Error(`${field} must contain printable ASCII characters only`)
+  }
+}
+
+function assertGloballyUniqueIdentifier (value: string): void {
+  assertEMVText('Globally unique identifier', value, 32)
+  const isAidOrUuid = /^[0-9A-F]+$/i.test(value) &&
+    value.length >= 10 &&
+    value.length % 2 === 0
+  const isReverseDomain = /^(?:[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?\.)+[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?$/i
+    .test(value)
+  if (!isAidOrUuid && !isReverseDomain) {
+    throw new Error(
+      'Globally unique identifier must be an AID, UUID without hyphens, or reverse domain name'
+    )
+  }
+}
+
+function addDataObject (id: string, value: string): string {
+  if (!/^\d{2}$/.test(id)) {
+    throw new Error(`Invalid EMVCo data object ID: ${id}`)
+  }
+  assertEMVText(`EMVCo data object ${id}`, value, 99)
+  return `${id}${value.length.toString().padStart(2, '0')}${value}`
+}
+
+function getNumericCurrencyCode (currency: string): string {
+  const normalizedCurrency = currency.trim().toUpperCase()
+  if (/^\d{3}$/.test(normalizedCurrency)) return normalizedCurrency
+
+  const currencyRecord = currencyCodes.code(normalizedCurrency)
+  if (currencyRecord === undefined) {
+    throw new Error(`Unknown ISO 4217 currency code: ${currency}`)
+  }
+  return currencyRecord.number
+}
+
+function crc16CcittFalse (value: string): string {
+  let crc = 0xFFFF
+  for (const byte of Buffer.from(value, 'utf8')) {
+    crc ^= byte << 8
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc & 0x8000) !== 0
+        ? ((crc << 1) ^ 0x1021) & 0xFFFF
+        : (crc << 1) & 0xFFFF
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0')
+}
+
+export const getEMVQRCodeText = (data: EMVQRCodeData): string => {
+  const globallyUniqueIdentifier = data.globallyUniqueIdentifier.trim()
+  const alias = data.checkoutCounterAliasValue.trim()
+  const reference = data.checkoutCounterReference?.trim()
+  const merchantCategoryCode = data.merchantCategoryCode.trim()
+  const transactionCurrency = getNumericCurrencyCode(data.transactionCurrency)
+  const countryCode = data.countryCode.trim().toUpperCase()
+  const merchantName = data.merchantName.trim()
+  const merchantCity = data.merchantCity.trim()
+
+  assertGloballyUniqueIdentifier(globallyUniqueIdentifier)
+  assertEMVText('Checkout counter alias', alias, 99)
+  if (reference !== undefined) assertEMVText('Checkout counter reference', reference, 99)
+  if (!/^\d{4}$/.test(merchantCategoryCode)) {
+    throw new Error('Merchant category code must be a four-digit ISO 18245 MCC')
+  }
+  if (!/^[A-Z]{2}$/.test(countryCode)) {
+    throw new Error('Country code must be an ISO 3166-1 alpha-2 code')
+  }
+  assertEMVText('Merchant name', merchantName, 25)
+  assertEMVText('Merchant city', merchantCity, 15)
+
+  let merchantAccountInformation = addDataObject('00', globallyUniqueIdentifier)
+  merchantAccountInformation += addDataObject('01', 'ALIAS')
+  merchantAccountInformation += addDataObject('02', alias)
+  if (reference !== undefined) {
+    merchantAccountInformation += addDataObject('03', reference)
   }
 
-  let emvQRCodeText = addDataObject('00', '01')
-  emvQRCodeText += addDataObject('01', '12')
+  let payload = addDataObject('00', '01')
+  payload += addDataObject('01', '11')
+  payload += addDataObject('28', merchantAccountInformation)
+  payload += addDataObject('52', merchantCategoryCode)
+  payload += addDataObject('53', transactionCurrency)
+  payload += addDataObject('58', countryCode)
+  payload += addDataObject('59', merchantName)
+  payload += addDataObject('60', merchantCity)
 
-  // Merchant Additional Info
-  const guidObj = addDataObject('00', guid)
-  const aliasType = addDataObject('01', 'ALIAS')
-  const aliasObj = addDataObject('02', checkoutCounterAliasValue)
-
-  emvQRCodeText += addDataObject('28', guidObj + aliasType + aliasObj)
-
-  emvQRCodeText += addDataObject('52', merchantCategoryCode)
-  emvQRCodeText += addDataObject('53', transactionCurrency)
-  // emvQRCodeText += addDataObject('54', transactionAmount)
-  if (countryCode != null && countryCode !== undefined) {
-    emvQRCodeText += addDataObject('58', countryCode)
-  }
-  emvQRCodeText += addDataObject('59', merchantDBAName)
-
-  if (merchantCity != null && merchantCity !== undefined) {
-    emvQRCodeText += addDataObject('60', merchantCity)
-  }
-
-  // CRC
-  emvQRCodeText += '6304'
-  const crcValue = crc16ccitt(Buffer.from(emvQRCodeText, 'utf8'))
-  emvQRCodeText += crcValue.toString(16).toUpperCase().padStart(4, '0')
-
-  return emvQRCodeText
+  payload += '6304'
+  return payload + crc16CcittFalse(payload)
 }
 
 export const generateQRImage = async (
   text: string,
-  options?: QRCodeOptions,
+  options?: QRCodeToBufferOptions,
   frameImagePath = ''
 ): Promise<Buffer> => {
   let frameImageBuffer: Buffer = Buffer.from('')
@@ -64,11 +131,13 @@ export const generateQRImage = async (
     }
   }
 
-  const qrCodeBuffer = await QRCode.toBuffer(
-    text,
-    {
-      width: 1500
-    })
+  const qrCodeBuffer = await QRCode.toBuffer([{
+    data: Buffer.from(text, 'utf8'),
+    mode: 'byte'
+  }], {
+    width: 1500,
+    ...options
+  })
 
   if (frameImagePath === '') {
     return qrCodeBuffer

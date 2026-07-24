@@ -5,7 +5,6 @@ import { initializeDatabase } from '../../src/database/initDatabase'
 import { AppDataSource } from '../../src/database/dataSource'
 import setupRoutes from '../../src/setup/routesSetup'
 import { testSucceedHealthCheck, testSucceedHealthCheckSendGridService } from './healthCheck.tests'
-import { disconnectMessageQueue } from '../../src/services/messageQueue'
 import { testUserLoginFails } from './UserLoginFails.tests'
 import { testUserLoginSucceed } from './UserLoginSucceed.tests'
 import { testGetMerchantsFails } from './GetMerchantsFails.tests'
@@ -61,6 +60,11 @@ jest.mock('@sendgrid/mail', () => ({
   ])
 }))
 
+jest.mock('../../src/services/registryOracleClient', () => ({
+  registerMerchantsWithRegistry: jest.fn().mockResolvedValue(undefined),
+  registerDFSPWithRegistry: jest.fn().mockResolvedValue(undefined)
+}))
+
 logger.silent = true
 
 const app = express()
@@ -76,7 +80,6 @@ describe('E2E API Tests', () => {
   afterAll(async () => {
     await AppDataSource.destroy()
     // await removeMerchantDocumentBucket()
-    await disconnectMessageQueue()
   })
 
   describe('GET Merchants API Tests', () => {

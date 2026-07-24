@@ -35,10 +35,13 @@ See the README.md file on each services for more Environment Variable Configurat
 ## Deploying on Docker
 * Requirements
     - `docker` and `docker-compose`
-    - [SendGrid](https://sendgrid.com/) API key is required for Email Verification 
-        - Register at [SendGrid](https://sendgrid.com/) and create new API Key at https://app.sendgrid.com/settings/api_keys
-        - Update the `SENDGRID_API_KEY` in the `./packages/acquirer-backend/.env` file with the new API Key obtained from https://app.sendgrid.com/settings/api_keys
-        - Update the `SENDER_EMAIL` in the `./packages/acquirer-backend/.env`
+    - Copy each service's safe template before local development:
+      `cp packages/acquirer-backend/.env.example packages/acquirer-backend/.env`,
+      `cp packages/acquirer-frontend/.env.example packages/acquirer-frontend/.env`, and
+      `cp packages/registry-oracle/.env.example packages/registry-oracle/.env`.
+    - Email is optional. The default `EMAIL_PROVIDER=none` requires no third-party
+      account. To enable SendGrid notifications and emailed forgot-password links,
+      set `EMAIL_PROVIDER=sendgrid`, `EMAIL_FROM`, and `SENDGRID_API_KEY`.
     - reCAPTCHA Site Key and Secret Key is required for reCAPTCHA Verification
         - Register at [Google reCAPTCHA](https://www.google.com/recaptcha/admin/create) and create new reCAPTCHA v2 Checkbox
         - Use Client Site Key and Update the `VITE_RECAPTCHA_SITE_KEY` in the `./packages/acquirer-frontend/.env`
@@ -49,6 +52,9 @@ See the README.md file on each services for more Environment Variable Configurat
     ```bash 
     docker-compose up --build
     ```
+    The API images run compiled JavaScript with production-only dependencies. The
+    frontend is served by Nginx and reads `VITE_API_URL` and
+    `VITE_RECAPTCHA_SITE_KEY` when its container starts.
     * Acquirer Frontend should be running at: http://localhost:5173
     * Acquirer Backend should be running at: http://localhost:5555/api/v1/health-check
         * Swagger API Doc should be at: http://localhost:5555/docs
@@ -61,8 +67,20 @@ See the README.md file on each services for more Environment Variable Configurat
 ## For Deploying manual without Docker
 * Check [Manual Deployment Guide](./docs/manual-deployment-guide.md)
 
+## Container releases
+
+Publishing a GitHub Release with a semantic tag such as `v1.1.0` builds
+multi-platform (`linux/amd64` and `linux/arm64`) images and publishes them to:
+
+* `ghcr.io/thitsax/merchant-acquirer-backend`
+* `ghcr.io/thitsax/merchant-acquirer-frontend`
+* `ghcr.io/thitsax/merchant-registry-oracle`
+
+The workflow creates `v1.1.0`, `1.1.0`, and `1.1` tags. A non-prerelease also
+updates `latest`.
+
 ## Running Testing
-Require `docker-compose up minio rabbitmq` (MinIO and RabbitMQ) to be running.
+Require `docker-compose up minio` (MinIO) to be running.
 * Run at the root of the project
     ```bash
     npm install
@@ -73,5 +91,11 @@ Require `docker-compose up minio rabbitmq` (MinIO and RabbitMQ) to be running.
 ![ERD Design](./images/Entity-Relations-Diagram.png)
 
 ## Note
-The system utilize RabbitMQ for message queuing between services and SendGrid for email verification. 
-Adopters can substitute these services with their preferred choices for a customized integration.
+The Acquirer Backend uses an authenticated, idempotent internal HTTP API to
+register merchants and DFSP credentials with the Registry Oracle. Both services
+must use the same `REGISTRY_INTERNAL_API_KEY`.
+
+Portal users are created with a one-time temporary password. The administrator
+must copy it from the creation dialog and share it through a secure channel.
+The user can sign in with it, but the API restricts the session until the
+password is replaced. Email notifications never contain the temporary password.

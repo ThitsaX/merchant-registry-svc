@@ -7,7 +7,10 @@ import { MerchantRegistrationStatus, AuditActionType, AuditTrasactionStatus } fr
 import { In } from 'typeorm'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
-import { publishToQueue } from '../../services/messageQueue'
+import {
+  type RegistryMerchantData,
+  registerMerchantsWithRegistry
+} from '../../services/registryOracleClient'
 
 /**
  * @openapi
@@ -168,19 +171,36 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
       {}, {}, portalUser
     )
 
-    const registryMerchantData = merchants.map(merchant => {
+    const registryMerchantData: RegistryMerchantData[] = merchants.map(merchant => {
+      const dfsp = merchant.dfsps[0]
+      const checkoutCounter = merchant.checkout_counters[0]
+      if (dfsp === undefined) {
+        throw new Error(`Merchant ${merchant.id} is missing a DFSP`)
+      }
       return {
         merchant_id: merchant.id,
-        dfsp_id: merchant.dfsps[0]?.id.toString(),
-        dfsp_name: merchant.dfsps[0]?.name,
-        fspId: merchant.dfsps[0]?.fspId,
-        checkout_counter_id: merchant.checkout_counters[0]?.id,
+        dfsp_name: dfsp.name,
+        fspId: dfsp.fspId,
+        checkout_counter_id: checkoutCounter?.id,
         currency_code: merchant.currency_code,
         lei: merchant.lei
       }
     })
 
-    await publishToQueue({ command: 'bulkGenerateAlias', data: registryMerchantData })
+    try {
+      await registerMerchantsWithRegistry(registryMerchantData)
+    } catch (error) {
+      await merchantRepository
+        .createQueryBuilder()
+        .update(MerchantEntity)
+        .set({
+          registration_status: MerchantRegistrationStatus.REVIEW,
+          registration_status_reason: 'Registry synchronization failed; approval can be retried'
+        })
+        .whereInIds(ids)
+        .execute()
+      throw error
+    }
 
     res.status(200).send({
       message: '"Waiting For Alias Generation" Status Updated for multiple merchants'

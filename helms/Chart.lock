@@ -11,11 +11,8 @@ dependencies:
 - name: chart-minio
   repository: file://./chart-minio
   version: 0.1.0
-- name: chart-rabbitmq
-  repository: file://./chart-rabbitmq
-  version: 0.1.0
 - name: chart-registry-oracle
   repository: file://./chart-registry-oracle
   version: 0.1.0
-digest: sha256:d3cc30025592b7ec14aa424e4cdc78522c44a2a9d023ad080f3690e9e7951d5f
-generated: "2023-12-21T14:48:52.158272519+06:30"
+digest: sha256:1df52f74fc143bd2dbc28f3b7a2b48f6615cbdaaa2a17648cd1f73ae08e7da47
+generated: "2026-07-24T12:30:51.127248628+07:00"

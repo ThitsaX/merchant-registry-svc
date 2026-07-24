@@ -17,6 +17,10 @@ import { checkPortalUserType } from '../middleware/checkUserType'
 import { PortalUserType } from 'shared-lib'
 import { putUserStatus } from './userControllers/putUserStatus'
 import { postUserForgotPassword } from './userControllers/forgotPassword'
+import {
+  postUserTemporaryPasswordReset
+} from './userControllers/postUserTemporaryPasswordReset'
+import { putUserChangePassword } from './userControllers/putUserChangePassword'
 
 /**
  * @openapi
@@ -48,6 +52,15 @@ router.get('/users/verify', verifyUserEmail)
 router.post('/users/forgot-password', forgotPasswordRateLimiter, postUserForgotPassword)
 
 router.put('/users/reset-password', authenticateJWT, putUserResetPassword)
+
+router.put('/users/change-password', authenticateJWT, putUserChangePassword)
+
+router.post(
+  '/users/:user_id/reset-password',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.CREATE_PORTAL_USERS),
+  postUserTemporaryPasswordReset
+)
 
 router.put(
   '/users/:user_id/status',

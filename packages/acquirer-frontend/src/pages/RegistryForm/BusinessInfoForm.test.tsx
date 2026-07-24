@@ -130,7 +130,10 @@ describe('BusinessInfoForm', () => {
     const monthlyTurnOverInput: HTMLInputElement =
       screen.getByLabelText(/Monthly Turn Over/)
     const merchantCategoryInput: HTMLSelectElement =
-      screen.getByLabelText(/Merchant Category/)
+      screen.getByLabelText(/^Merchant Category(?! Code)/)
+    const mccInput: HTMLInputElement = screen.getByLabelText(
+      /Merchant Category Code/
+    )
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
     const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
     const accountNumberInput: HTMLInputElement = screen.getByLabelText(/Account Number/)
@@ -143,6 +146,7 @@ describe('BusinessInfoForm', () => {
     expect(numberOfEmployeeInput.value).toEqual('6 - 10')
     expect(monthlyTurnOverInput.value).toEqual('')
     expect(merchantCategoryInput.value).toEqual('10120')
+    expect(mccInput.value).toEqual('5812')
     expect(merchantTypeInput.value).toEqual('Small Shop')
     expect(currencyInput.value).toEqual('ALL')
     expect(accountNumberInput.value).toEqual('')
@@ -197,7 +201,7 @@ describe('BusinessInfoForm', () => {
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
     const merchantCategoryInput: HTMLSelectElement =
-      screen.getByLabelText(/Merchant Category/)
+      screen.getByLabelText(/^Merchant Category(?! Code)/)
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
     const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
@@ -209,9 +213,7 @@ describe('BusinessInfoForm', () => {
     fireEvent.change(currencyInput, { target: { value: 'ALL' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['createBusinessInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('createBusinessInfo'))
   })
 
   it('should call "updateBusinessInfo.mutate" when it is a draft or reverted data', async () => {
@@ -230,9 +232,7 @@ describe('BusinessInfoForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['updateBusinessInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('updateBusinessInfo'))
   })
 
   it('should show an error toast when the merchantId is not found', async () => {
@@ -248,8 +248,6 @@ describe('BusinessInfoForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['toast'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('toast'))
   })
 })

@@ -4,8 +4,13 @@ import { CheckCircleIcon, NotAllowedIcon, WarningIcon } from '@chakra-ui/icons'
 import { Box, Flex, Heading, Stack, Text, Tooltip } from '@chakra-ui/react'
 import { PortalUserStatus } from 'shared-lib'
 
-import type { User } from '@/types/users'
-import { useUsers, useUserStatusUpdate } from '@/api/hooks/users'
+import type { TemporaryPasswordResponse, User } from '@/types/users'
+import {
+  useResetUserTemporaryPassword,
+  useUserProfile,
+  useUsers,
+  useUserStatusUpdate,
+} from '@/api/hooks/users'
 import { useTable } from '@/hooks'
 import {
   AlertDialog,
@@ -14,6 +19,7 @@ import {
   DataTable,
   EmptyState,
   TableSkeleton,
+  TemporaryPasswordModal,
 } from '@/components/ui'
 
 const UserManagement = () => {
@@ -21,8 +27,16 @@ const UserManagement = () => {
   const [isOpenBlockModal, setIsOpenBlockModal] = useState(false)
   const [isOpenDisableModal, setIsOpenDisableModal] = useState(false)
   const [isOpenActivateModal, setIsOpenActivateModal] = useState(false)
+  const [isOpenResetModal, setIsOpenResetModal] = useState(false)
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [temporaryPassword, setTemporaryPassword] =
+    useState<TemporaryPasswordResponse | null>(null)
+  const userProfile = useUserProfile()
+  const resetUserPassword = useResetUserTemporaryPassword()
+  const canResetPassword =
+    userProfile.data?.role.permissions.includes('Create Portal Users') ?? false
+  const currentUserId = userProfile.data?.id
 
   const columns = useMemo(() => {
     const columnHelper = createColumnHelper<User>()
@@ -138,10 +152,35 @@ const UserManagement = () => {
             )
           }
 
+          const ResetPasswordButton = () => {
+            return (
+              <Tooltip label='Generate a new temporary password' hasArrow>
+                <CustomButton
+                  colorVariant='info'
+                  onClick={() => {
+                    setIsOpenResetModal(true)
+                    setSelectedUser(user)
+                  }}
+                  mx='2'
+                >
+                  Reset password
+                </CustomButton>
+              </Tooltip>
+            )
+          }
+
+          const showResetPassword =
+            canResetPassword &&
+            user.no !== currentUserId &&
+            [PortalUserStatus.ACTIVE, PortalUserStatus.DISABLED].includes(
+              status as PortalUserStatus
+            )
+
           let actionButtons
           if (status === PortalUserStatus.ACTIVE) {
             actionButtons = (
               <>
+                {showResetPassword && <ResetPasswordButton />}
                 <DisableButton />
                 <BlockButton />
               </>
@@ -149,6 +188,7 @@ const UserManagement = () => {
           } else if (status === PortalUserStatus.DISABLED) {
             actionButtons = (
               <>
+                {showResetPassword && <ResetPasswordButton />}
                 <ActivateButton />
                 <BlockButton />
               </>
@@ -161,7 +201,7 @@ const UserManagement = () => {
         },
       }),
     ]
-  }, [])
+  }, [canResetPassword, currentUserId])
 
   const users = useUsers()
   let data
@@ -261,6 +301,30 @@ const UserManagement = () => {
           setIsOpenActivateModal(false)
         }}
       />
+
+      <AlertDialog
+        alertText={`Generate a new temporary password for ${selectedUser?.email}? All existing sessions will be signed out.`}
+        isOpen={isOpenResetModal}
+        onClose={() => setIsOpenResetModal(false)}
+        onConfirm={() => {
+          if (selectedUser != null) {
+            resetUserPassword.mutate(selectedUser.no, {
+              onSuccess: result => setTemporaryPassword(result),
+            })
+          }
+          setIsOpenResetModal(false)
+        }}
+      />
+
+      {temporaryPassword && (
+        <TemporaryPasswordModal
+          isOpen={true}
+          userEmail={temporaryPassword.data.email}
+          temporaryPassword={temporaryPassword.temporaryPassword}
+          emailDelivery={temporaryPassword.emailDelivery}
+          onClose={() => setTemporaryPassword(null)}
+        />
+      )}
     </Stack>
   )
 }

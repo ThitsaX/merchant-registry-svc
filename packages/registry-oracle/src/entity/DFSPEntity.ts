@@ -10,7 +10,7 @@ export class DFSPEntity {
   @PrimaryGeneratedColumn()
     id!: number
 
-  @Column({ nullable: false })
+  @Column({ nullable: false, unique: true })
     fspId!: string
 
   @Column({ nullable: false })

@@ -1,16 +1,17 @@
 import instance from '@/lib/axiosInstance'
+import type { LoginResponse } from '@/types/auth'
 
 export async function login(
   email: string,
   password: string,
   recaptchaToken: string | null
 ) {
-  const response = await instance.post<{ token: string }>('/users/login', {
+  const response = await instance.post<LoginResponse>('/users/login', {
     email,
     password,
     recaptchaToken,
   })
-  return response.data.token
+  return response.data
 }
 
 export async function logout() {
@@ -21,6 +22,14 @@ export async function logout() {
 export async function setPassword(password: string) {
   const response = await instance.put('/users/reset-password', {
     password,
+  })
+  return response.data
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const response = await instance.put('/users/change-password', {
+    currentPassword,
+    newPassword,
   })
   return response.data
 }

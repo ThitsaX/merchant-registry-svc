@@ -1,27 +1,31 @@
-# Use an official Node runtime as the base image
-FROM node:18.16-alpine3.18
+# syntax=docker/dockerfile:1.7
 
-RUN apk add --no-cache curl
-
-# Set the working directory in the container
+FROM node:24.18.0-alpine AS build
 WORKDIR /app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json and package-lock.json are copied
-COPY package*.json ./
+COPY package.json package-lock.json ./
+COPY packages/shared-lib/package.json ./packages/shared-lib/package.json
+COPY packages/acquirer-frontend/package.json ./packages/acquirer-frontend/package.json
 
-COPY packages/shared-lib/package*.json ./packages/shared-lib/
-# COPY packages/acquirer-backend/package*.json ./packages/acquirer-backend/
-COPY packages/acquirer-frontend/package*.json ./packages/acquirer-frontend/
-# COPY packages/registry-oracle/package*.json ./packages/registry-oracle/
+RUN --mount=type=cache,target=/root/.npm \
+    HUSKY=0 npm ci \
+      --workspace shared-lib \
+      --workspace @mojaloop/merchant-acquirer-frontend
 
-RUN npm i
+COPY packages/shared-lib/tsconfig.json ./packages/shared-lib/tsconfig.json
+COPY packages/shared-lib/src ./packages/shared-lib/src
+COPY packages/acquirer-frontend/index.html packages/acquirer-frontend/tsconfig.json packages/acquirer-frontend/tsconfig.node.json packages/acquirer-frontend/vite.config.ts ./packages/acquirer-frontend/
+COPY packages/acquirer-frontend/public ./packages/acquirer-frontend/public
+COPY packages/acquirer-frontend/src ./packages/acquirer-frontend/src
 
-#  Copy all even although will not be using frontend in this container
-COPY . .
+RUN npm run build --workspace shared-lib \
+    && npm run build --workspace @mojaloop/merchant-acquirer-frontend
 
-# Make port 5173 available to the world outside this container
+FROM nginx:alpine AS runtime
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/usr/share/nginx/html
+
+COPY docker/acquirer-frontend.nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/frontend-config.js.template /etc/nginx/templates/config.js.template
+COPY --from=build /app/packages/acquirer-frontend/dist /usr/share/nginx/html
+
 EXPOSE 5173
-
-# Run the app when the container launches
-CMD [ "npm", "run", "dev", "-w", "@mojaloop/merchant-acquirer-frontend", "--", "--host"]

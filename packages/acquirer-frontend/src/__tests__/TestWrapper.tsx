@@ -1,25 +1,33 @@
-import { BrowserRouter } from 'react-router-dom'
+import { useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ChakraProvider } from '@chakra-ui/react'
 
 import theme from '@/theme'
-import { DrawerDisclosureProvider, NavItemsProvider } from '@/contexts'
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Infinity, retry: false },
+          mutations: { retry: false },
+        },
+      })
+  )
+
   return (
-    <QueryClientProvider client={new QueryClient()}>
-      <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
         <ChakraProvider
           theme={theme}
           toastOptions={{
             defaultOptions: { variant: 'subtle', position: 'top', isClosable: true },
           }}
         >
-          <NavItemsProvider>
-            <DrawerDisclosureProvider>{children}</DrawerDisclosureProvider>
-          </NavItemsProvider>
+          {children}
         </ChakraProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     </QueryClientProvider>
   )
 }

@@ -507,14 +507,14 @@ paths:
       responses:
         '200':
           description: Health Check for Hub Onboarding
-  /health-check/sendgrid-email-service:
+  /health-check/email-service:
     get:
       tags:
         - Health Check
       summary: Health Check
       responses:
         '200':
-          description: Health Check for SendGrid Email Service
+          description: Health Check for the configured email provider
   /merchants/{id}:
     get:
       tags:
@@ -974,6 +974,8 @@ paths:
                 registered_name:
                   type: string
                   example: Merchant 1
+                lei:
+                  type: string
                 employees_num:
                   type: string
                   example: 1 - 5
@@ -986,12 +988,15 @@ paths:
                 category_code:
                   type: string
                   example: '10410'
+                mcc:
+                  type: string
+                  pattern: ^\d{4}$
+                  example: '5812'
                 merchant_type:
                   type: string
                   example: Individual
                 license_number:
                   type: string
-                  example: '123456789'
                 license_document:
                   type: string
                   format: binary
@@ -1010,6 +1015,17 @@ paths:
                     type: object
         '422':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'LEI validation failed: LEI not found in GLEIF database'
+                  field:
+                    type: string
+                    example: lei
         '500':
           description: Server error
   /merchants/{id}/business-owners:
@@ -1189,6 +1205,8 @@ paths:
                 registered_name:
                   type: string
                   example: Merchant 1
+                lei:
+                  type: string
                 employees_num:
                   type: string
                   example: 1 - 5
@@ -1201,6 +1219,10 @@ paths:
                 category_code:
                   type: string
                   example: '10410'
+                mcc:
+                  type: string
+                  pattern: ^\d{4}$
+                  example: '5812'
                 merchant_type:
                   type: string
                   example: Individual
@@ -1230,6 +1252,17 @@ paths:
                     type: object
         '422':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'LEI validation failed: LEI not found in GLEIF database'
+                  field:
+                    type: string
+                    example: lei
         '500':
           description: Server error
   /merchants/{merchantId}/locations/{locationId}:
@@ -1643,8 +1676,8 @@ paths:
                   required: false
                   nullable: true
       responses:
-        '200':
-          description: User created. And Verification Email Sent
+        '201':
+          description: User created with a one-time temporary password
         '400':
           description: Invalid credentials
         '422':
@@ -1767,6 +1800,52 @@ paths:
       responses:
         '200':
           description: Logout Successful
+  /users/{user_id}/reset-password:
+    post:
+      tags:
+        - Portal Users
+      summary: Generate a one-time temporary password for a user
+      security:
+        - Authorization: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Temporary password generated and returned once
+        '403':
+          description: Insufficient permission for the target user's role
+  /users/change-password:
+    put:
+      tags:
+        - Portal Users
+      summary: Replace the authenticated user's current or temporary password
+      security:
+        - Authorization: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password changed and all sessions revoked
+        '400':
+          description: Current password is incorrect
   /users/reset-password:
     put:
       tags:

@@ -171,7 +171,12 @@ export async function postUserLogin (req: Request, res: Response) {
       user
     )
 
-    res.json({ success: true, message: 'Login successful', token })
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      mustChangePassword: user.must_change_password
+    })
   } catch (error: any) /* istanbul ignore next */ {
     await audit(
       AuditActionType.ACCESS,

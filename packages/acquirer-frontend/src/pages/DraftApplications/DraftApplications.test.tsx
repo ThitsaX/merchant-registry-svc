@@ -164,14 +164,14 @@ describe('DraftApplications', () => {
   })
 
   it('should call "drafts.refetch" function when the filter form is submitted', async () => {
+    const refetch = vi.fn()
     mockUsers.mockReturnValue({ data: hoistedValues.users, isLoading: false })
     mockDrafts.mockReturnValue({
       data: { data: hoistedValues.drafts, totalPages: 1 },
       isFetching: false,
       isSuccess: true,
-      refetch: () => vi.fn(),
+      refetch,
     })
-    const refetchSpy = vi.spyOn(vi, 'fn')
 
     render(
       <TestWrapper>
@@ -182,9 +182,7 @@ describe('DraftApplications', () => {
     const filterForm = screen.getByTestId('filter-form')
     fireEvent.submit(filterForm)
 
-    await waitFor(() => Promise.resolve)
-
-    expect(refetchSpy).toHaveBeenCalled()
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
   })
 
   it('should render merchant info modal when "View Details" button is clicked', () => {

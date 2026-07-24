@@ -1,10 +1,14 @@
 import {
   Entity,
-  Column, PrimaryGeneratedColumn,
-  CreateDateColumn, UpdateDateColumn
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index
 } from 'typeorm'
 
 @Entity('registry')
+@Index(['merchant_id', 'checkout_counter_id'], { unique: true })
 export class RegistryEntity {
   @PrimaryGeneratedColumn()
     id!: number

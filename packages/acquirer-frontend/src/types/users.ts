@@ -20,7 +20,20 @@ export type ServerUser = {
   role: Role
   dfsp: DFSP
   status: PortalUserStatus
+  must_change_password: boolean
   user_type: PortalUserType
   created_at: string
   updated_at: string
+}
+
+export type EmailDelivery = {
+  provider: string
+  status: 'disabled' | 'sent' | 'failed'
+}
+
+export type TemporaryPasswordResponse = {
+  data: ServerUser
+  temporaryPassword: string
+  mustChangePassword: true
+  emailDelivery: EmailDelivery
 }

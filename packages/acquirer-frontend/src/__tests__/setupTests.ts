@@ -1,6 +1,6 @@
 import * as matchers from '@testing-library/jest-dom/matchers'
 import { cleanup } from '@testing-library/react'
-import { afterEach, beforeAll, expect } from 'vitest'
+import { afterEach, beforeAll, expect, vi } from 'vitest'
 
 import '@testing-library/jest-dom'
 
@@ -15,4 +15,9 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
+  sessionStorage.clear()
+  vi.restoreAllMocks()
+  vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })

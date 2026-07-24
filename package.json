@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "prepare": "husky install",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run acquirer-backend:test && npm run test:unit:frontend && npm run oracle:test",
     "acquirer-backend:start": "npm run start -w @mojaloop/merchant-acquirer-backend",
     "acquirer-backend:test": "npm run test -w @mojaloop/merchant-acquirer-backend",
     "acquirer-backend:test:coverage": "npm run test:coverage -w @mojaloop/merchant-acquirer-backend",
@@ -27,11 +27,15 @@
     "oracle:test": "npm run test -w @mojaloop/merchant-registry-oracle",
     "oracle:test:coverage": "npm run test:coverage -w @mojaloop/merchant-registry-oracle",
     "audit:check": "npx audit-ci --config ./audit-ci.jsonc",
-    "build": "npm -ws run build"
+    "build": "npm run build -w shared-lib && npm run build -w @mojaloop/merchant-acquirer-backend && npm run build -w @mojaloop/merchant-acquirer-frontend && npm run build -w @mojaloop/merchant-registry-oracle"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "npm": ">=11"
+  },
   "workspaces": [
     "packages/*"
   ],
@@ -40,9 +44,5 @@
     "@commitlint/config-conventional": "^20.0.0",
     "@types/base64url": "^2.0.3",
     "audit-ci": "^7.1.0"
-  },
-  "dependencies": {
-    "i18n-iso-countries": "^7.14.0",
-    "iso-3166-2": "^1.0.0"
   }
 }

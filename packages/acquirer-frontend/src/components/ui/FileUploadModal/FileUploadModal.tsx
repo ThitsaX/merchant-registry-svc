@@ -60,6 +60,8 @@ const FileUploadModal = ({
     intervalRef.current = setInterval(() => {
       setUploadProgress(prevState => prevState + 10)
     }, 150)
+
+    return () => clearInterval(intervalRef.current)
   }, [isUploading])
 
   useEffect(() => {

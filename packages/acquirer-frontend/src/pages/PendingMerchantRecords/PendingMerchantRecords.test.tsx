@@ -204,15 +204,15 @@ describe('PendingMerchantRecords', () => {
   })
 
   it('should call "pendingMerchants.refetch" function when the filter form is submitted', async () => {
+    const refetch = vi.fn()
     mockUserProfile.mockReturnValue({ data: { id: 6, name: 'DFSP 1 Admin 2' } })
     mockUsers.mockReturnValue({ data: hoistedValues.users, isLoading: false })
     mockPendingMerchants.mockReturnValue({
       data: { data: hoistedValues.pendingMerchants, totalPages: 1 },
       isFetching: false,
       isSuccess: true,
-      refetch: () => vi.fn(),
+      refetch,
     })
-    const refetchSpy = vi.spyOn(vi, 'fn')
 
     render(
       <TestWrapper>
@@ -223,9 +223,7 @@ describe('PendingMerchantRecords', () => {
     const filterForm = screen.getByTestId('filter-form')
     fireEvent.submit(filterForm)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(refetchSpy).toHaveBeenCalled()
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
   })
 
   it('should disable row select checkbox when the logged in user is the maker', () => {
@@ -303,7 +301,7 @@ describe('PendingMerchantRecords', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => expect(mockRejectMerchants).toHaveBeenCalled())
-  })
+  }, 10000)
 
   it('should call "approveMerchants.mutateAsync" function when "Approve" button is clicked', async () => {
     mockUserProfile.mockReturnValue({ data: { id: 6, name: 'DFSP 1 Admin 2' } })

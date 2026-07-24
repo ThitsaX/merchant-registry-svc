@@ -10,6 +10,7 @@ import MerchantInformationModal from './MerchantInformationModal/MerchantInforma
 import MerchantRecordsPageTemplate from './MerchantRecordsPageTemplate'
 import Skeleton from './Skeleton/Skeleton'
 import TableSkeleton from './TableSkeleton/TableSkeleton'
+import TemporaryPasswordModal from './TemporaryPasswordModal/TemporaryPasswordModal'
 
 export {
   AlertDialog,
@@ -24,4 +25,5 @@ export {
   MerchantRecordsPageTemplate,
   Skeleton,
   TableSkeleton,
+  TemporaryPasswordModal,
 }

@@ -13,8 +13,6 @@ import {
 } from '@chakra-ui/react'
 import { FiMinusCircle, FiPlusCircle } from 'react-icons/fi'
 
-export type Meta = { isConditional: boolean; conditionStatement: string } | undefined
-
 interface MobileTableItemProps<T> {
   row: Row<T>
   // This needs to be an array because additonal action cloumns
@@ -73,17 +71,6 @@ const MobileTableItem = <T,>({ row, alwaysVisibleColumns }: MobileTableItemProps
                 typeof cell.column.columnDef.header === 'string'
                   ? cell.column.columnDef.header
                   : ''
-
-              // This is a workaround to render cells conditionally in mobile table
-              let isVisible = true
-              const meta = cell.column.columnDef.meta as Meta
-
-              /* c8 ignore next 5 */
-              if (meta?.isConditional) {
-                isVisible = eval(meta.conditionStatement)
-              }
-
-              if (!isVisible) return null
 
               return (
                 <HStack

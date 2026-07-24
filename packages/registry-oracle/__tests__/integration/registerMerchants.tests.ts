@@ -1,5 +1,6 @@
-import { type RegistryEntity } from '../../src/entity/RegistryEntity'
+import { RegistryEntity } from '../../src/entity/RegistryEntity'
 import { type MerchantData, registerMerchants } from '../../src/services/registerMerchant'
+import { AppDataSource } from '../../src/database/dataSource'
 
 export function testRegisterMerchants (): void {
   test('Registering a list of valid merchants without LEI', async () => {
@@ -158,5 +159,27 @@ export function testRegisterMerchants (): void {
   test('Handling empty merchant list', async () => {
     const result = await registerMerchants([])
     expect(result).toEqual([])
+  })
+
+  test('Registering the same merchant twice updates one registry record', async () => {
+    const merchant: MerchantData = {
+      merchant_id: 66009,
+      fspId: 'fsp9',
+      dfsp_name: 'DFSP #9',
+      checkout_counter_id: 66109,
+      currency_code: {
+        iso_code: 'USD',
+        description: 'US Dollar'
+      }
+    }
+
+    const firstResult = await registerMerchants([merchant])
+    const secondResult = await registerMerchants([merchant])
+
+    expect(secondResult[0].id).toBe(firstResult[0].id)
+    expect(await AppDataSource.manager.countBy(RegistryEntity, {
+      merchant_id: merchant.merchant_id,
+      checkout_counter_id: merchant.checkout_counter_id
+    })).toBe(1)
   })
 }

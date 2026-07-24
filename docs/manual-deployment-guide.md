@@ -4,12 +4,11 @@
 
 ## Pre-requisites
 
-1. Node.js (preferably version 18.16)
+1. Node.js 24
 2. MySQL/MariaDB (used by both Acquirer and Registry Oracle)
-3. RabbitMQ (for message brokering between Acquirer and Registry Oracle)
-4. Minio (object storage for Documents/Logos/QRImages)
-5. Git (for source code management)
-6. SendGrid Email Service API Key (For Email Verification for New Users)
+3. Minio (object storage for Documents/Logos/QRImages)
+4. Git (for source code management)
+5. Optional: SendGrid API key for email notifications and emailed password recovery
 
 ## Service Overview
 
@@ -19,7 +18,7 @@
 2. **acquirer-backend**: Backend Service for handling Merchants Informations.
 3. **registry-oracle**: Will Serve as Oracle for Mojaloop ALS.
 4. **MySQL**: The merchant database.
-5. **RabbitMQ**: The message broker.
+5. **Internal HTTP API**: Authenticated, idempotent communication from the Acquirer Backend to the Registry Oracle.
 
 ### Configuration
 
@@ -42,8 +41,8 @@ cd merchant-registry-svc
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm install 18.16
-nvm use 18.16
+nvm install 24.18.0
+nvm use 24.18.0
 
 ```
 2. **pnpm**: Install pnpm globally for FrontEnd React Client.
@@ -81,23 +80,7 @@ GRANT ALL PRIVILEGES ON registry_db.* TO 'newuser'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### Step 5: Set Up RabbitMQ
-
-1. Install RabbitMQ and enable its management plugin.
-
-```bash
-sudo apt install -y rabbitmq-server
-sudo rabbitmq-plugins enable rabbitmq_management
-```
-
-2. Check if RabbitMQ is running. Service should be running on port 5672. Management plugin should be running on port 15672.
-```bash
-sudo rabbitmqctl status
-```
-(Note: Use the default user `guest` and password `guest` for that)
-
-
-### Step 6: Set Up Minio (Skip if you are using AWS S3 or any other S3 compatible storage)
+### Step 5: Set Up Minio (Skip if you are using AWS S3 or any other S3 compatible storage)
 
 1. Download Minio from the [official site](https://min.io/download#/linux).
 ```bash
@@ -111,7 +94,7 @@ sudo mv minio /usr/local/bin
 minio server /mnt/minio-storage-data
 ```
 
-### Step 7: Set Up Environment Variables
+### Step 6: Set Up Environment Variables
 
 1. Open a `.env` file in `<root-project>/packages/acquirer-frontend` and change in the environment variables.
 (Note: `VITE_API_URL` should be set the external reachable IP Address from browser frontend client)
@@ -119,8 +102,7 @@ minio server /mnt/minio-storage-data
 VITE_API_URL=http://localhost:5555/api/v1
 ```
 
-1. Open the `.env` file in `<root-project>/packages/acquirer-backend` and change in the environment variables.
-    - SendGrid API Key can be obtained from [here](https://app.sendgrid.com/settings/api_keys). Or Ask the developer team for the API Key.
+1. Open the `.env` file in `<root-project>/packages/acquirer-backend` and change the environment variables.
 
 ```
 JWT_SECRET=secret
@@ -138,8 +120,19 @@ S3_PORT=9000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 
-# For SendGrid Email Service
-SENDGRID_API_KEY=sendgrid-api-key # Replace with your API Key
+# Email is optional. This is the default and requires no third-party service.
+EMAIL_PROVIDER=none
+
+# To enable SendGrid instead:
+# EMAIL_PROVIDER=sendgrid
+# EMAIL_FROM=sender@example.com
+# SENDGRID_API_KEY=replace-with-your-api-key
+
+# For the Registry Oracle internal API
+REGISTRY_ORACLE_URL=http://localhost:8888
+REGISTRY_INTERNAL_API_KEY=replace-with-a-strong-shared-secret
+REGISTRY_HTTP_TIMEOUT_MS=5000
+REGISTRY_HTTP_RETRIES=2
 ```
 
 2. Open the `.env` file in `<root-project>/packages/registry-oracle` and change in the environment variables.
@@ -152,9 +145,12 @@ DB_PORT=3306
 DB_USERNAME=newuser
 DB_PASSWORD=password
 DB_DATABASE=registry_db
+
+# Must match the Acquirer Backend value
+REGISTRY_INTERNAL_API_KEY=replace-with-a-strong-shared-secret
 ```
 
-### Step 8: Start Services
+### Step 7: Start Services
 
 ```bash
 # For acquirer-backend
@@ -167,7 +163,7 @@ npm run dev -w acquirer-frontend -- --host
 npm run registry-oracle:start
 ```
 
-### Step 9: Add Oracle Endpoint to Mojaloop ALS
+### Step 8: Add Oracle Endpoint to Mojaloop ALS
 Replace the `127.0.0.1:4001` with the ALS IP Address and Port.
 `registry-oracle:8888` should be reachable from ALS. (Trying pinging `registry-oracle` from ALS container)
 
@@ -196,6 +192,8 @@ curl -H "Content-Type: application/json" -H "Date: $(date -u +%a,\ %d\ %b\ %Y\ %
 ## Security Best Practices
 
 1. **MySQL**: Don't use `root` for application access. Create a specific user with restricted permissions.
-2. **RabbitMQ**: Create a specific user with restricted permissions.
+2. **Internal API Secret**: Use a strong secret and store it securely in both services.
 3. **Environment Variables**: Store them securely, especially in production.
 4. **JWT Secret**: Use a strong, unique secret
+5. **Temporary Passwords**: Copy them once and share them through a secure
+   channel. Email notifications intentionally do not include passwords.

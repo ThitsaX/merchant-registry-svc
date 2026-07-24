@@ -55,6 +55,10 @@ import { gleifService } from '../../services/GLEIFService'
  *               category_code:
  *                 type: string
  *                 example: "10410"
+ *               mcc:
+ *                 type: string
+ *                 pattern: '^\d{4}$'
+ *                 example: "5812"
  *               merchant_type:
  *                 type: string
  *                 example: "Individual"
@@ -244,6 +248,9 @@ function createMerchantEntity (merchantRepository: any, body: any, portalUser: a
   merchant.monthly_turnover = body.monthly_turnover
   merchant.currency_code = body.currency_code
   merchant.category_code = body.category_code
+  merchant.mcc = typeof body.mcc === 'string' && body.mcc.length > 0
+    ? body.mcc
+    : null
   merchant.merchant_type = body.merchant_type
   merchant.registration_status = MerchantRegistrationStatus.DRAFT
   merchant.registration_status_reason = `Draft Merchant by ${portalUser?.email}`

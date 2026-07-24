@@ -61,6 +61,7 @@ export function testPostMerchantDraft (app: Application): void {
       .field('monthly_turnover', 0.5)
       .field('currency_code', 'PHP')
       .field('category_code', '10410')
+      .field('mcc', '5812')
       .field('merchant_type', 'Individual')
       .field('payinto_alias', 'merchant1')
       .field('license_number', '123456789')
@@ -72,6 +73,7 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.data).toHaveProperty('id')
     expect(res.body.data).toHaveProperty('registration_status')
     expect(res.body.data.registration_status).toEqual(MerchantRegistrationStatus.DRAFT)
+    expect(res.body.data.mcc).toEqual('5812')
 
     // Clean up
     await AppDataSource.manager.delete(MerchantEntity, res.body.data.id)

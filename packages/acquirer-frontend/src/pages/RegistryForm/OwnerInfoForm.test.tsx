@@ -192,9 +192,7 @@ describe('OwnerInfoForm', () => {
     fireEvent.change(phoneNumberInput, { target: { value: '932-555-4213' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['createOwnerInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('createOwnerInfo'))
   })
 
   it('should call "updateOwnerInfo.mutate" when it is a draft', async () => {
@@ -210,9 +208,7 @@ describe('OwnerInfoForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['updateOwnerInfo'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('updateOwnerInfo'))
   })
 
   it('should show an error toast when the merchantId is not found', async () => {
@@ -228,8 +224,6 @@ describe('OwnerInfoForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(fn.mock.calls[0]).toEqual(['toast'])
+    await waitFor(() => expect(fn).toHaveBeenCalledWith('toast'))
   })
 })

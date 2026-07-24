@@ -3,7 +3,13 @@ import { useToast } from '@chakra-ui/react'
 import { isAxiosError } from 'axios'
 
 import { FALLBACK_ERROR_MESSAGE } from '@/constants/errorMessage'
-import { createUser, getUserProfile, getUsers, updateUserStatus } from '../users'
+import {
+  createUser,
+  getUserProfile,
+  getUsers,
+  resetUserTemporaryPassword,
+  updateUserStatus,
+} from '../users'
 
 export function useUsers() {
   return useQuery({
@@ -23,11 +29,15 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: createUser,
-    onSuccess: () => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
+      const emailDescription =
+        data.emailDelivery.status === 'sent'
+          ? 'The user was notified by email.'
+          : 'Share the temporary password through a secure channel.'
       toast({
         title: 'User Creation Successful!',
-        description: 'Please notify the new user to check the email.',
+        description: emailDescription,
         status: 'success',
       })
     },
@@ -38,6 +48,34 @@ export function useCreateUser() {
       }
       toast({
         title: 'User Creation Failed!',
+        description: errorMessage,
+        status: 'error',
+      })
+    },
+  })
+}
+
+export function useResetUserTemporaryPassword() {
+  const queryClient = useQueryClient()
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: resetUserTemporaryPassword,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast({
+        title: 'Temporary Password Generated',
+        description: 'Copy it now and share it through a secure channel.',
+        status: 'success',
+      })
+    },
+    onError: error => {
+      let errorMessage = FALLBACK_ERROR_MESSAGE
+      if (isAxiosError(error) && typeof error.response?.data.message === 'string') {
+        errorMessage = error.response.data.message
+      }
+      toast({
+        title: 'Password Reset Failed!',
         description: errorMessage,
         status: 'error',
       })

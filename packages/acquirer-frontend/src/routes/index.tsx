@@ -9,6 +9,7 @@ import {
   AliasGeneratedMerchantRecords,
   AllMerchantRecords,
   AuditLog,
+  ChangePassword,
   Dfsps,
   DraftApplications,
   ForgotPassword,
@@ -37,6 +38,14 @@ const Routes = () => {
         }
 
         const userProfile = await getUserProfile()
+        if (userProfile.must_change_password) {
+          localStorage.setItem('mustChangePassword', 'true')
+          setRedirectTarget('/change-password')
+          setIsLoading(false)
+          return
+        }
+
+        localStorage.setItem('mustChangePassword', 'false')
         if (userProfile.user_type === PortalUserType.HUB) {
           setRedirectTarget('/portal-user-management/user-management')
         }
@@ -143,6 +152,11 @@ const Routes = () => {
     {
       path: '/login',
       element: <Login />,
+      caseSensitive: true,
+    },
+    {
+      path: '/change-password',
+      element: <ChangePassword />,
       caseSensitive: true,
     },
     {

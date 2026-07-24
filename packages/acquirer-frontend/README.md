@@ -5,6 +5,7 @@ npm install
 ```
 
 ```bash
+cp .env.example .env
 npm run dev
 ```
 
@@ -12,10 +13,10 @@ npm run dev
 
 | Environment Variables     | Default Values                 | Description                                                                                |
 | ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `VITE_PORT`               | `5172`                         | Port number for the Vite development server.                                               |
+| `VITE_PORT`               | `5172`                         | Port number for the Vite development server. The production container listens on `5173`.  |
 | `VITE_HOST`               | `0.0.0.0`                      | Host IP address for the Vite development server.                                           |
-| `VITE_API_URL`            | `http://localhost:5555/api/v1` | The base URL for the Backend Acquirer API, used by the Vite application for backend calls. |
-| `VITE_RECAPTCHA_SITE_KEY` | `recaptcha-site-key`           | Frontend Site key for Google reCAPTCHA. (Change in production)                             |
+| `VITE_API_URL`            | `http://localhost:5555/api/v1` | Backend API URL. The production container applies it at startup through `config.js`.       |
+| `VITE_RECAPTCHA_SITE_KEY` | `recaptcha-site-key`           | reCAPTCHA site key. The production container applies it at startup through `config.js`.    |
 
 ## Development Notes
 

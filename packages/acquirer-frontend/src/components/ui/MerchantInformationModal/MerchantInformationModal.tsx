@@ -59,6 +59,7 @@ export const MerchantInfo = ({
     employees_num,
     monthly_turnover,
     category_code,
+    mcc,
     merchant_type,
     default_dfsp,
     currency_code,
@@ -128,6 +129,8 @@ export const MerchantInfo = ({
               label='Merchant Category'
               value={category_code?.description || 'N/A'}
             />
+
+            <DetailsItem label='MCC' value={mcc || 'N/A'} />
 
             <DetailsItem label='Merchant Type' value={merchant_type || 'N/A'} />
 

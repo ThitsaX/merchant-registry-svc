@@ -117,6 +117,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
       employees_num,
       monthly_turnover,
       category_code,
+      mcc,
       merchant_type,
       currency_code,
       business_licenses,
@@ -133,6 +134,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
     employees_num && setValue('employees_num', employees_num)
     monthly_turnover && setValue('monthly_turnover', monthly_turnover)
     merchant_category && setValue('category_code', merchant_category)
+    mcc && setValue('mcc', mcc)
     merchant_type && setValue('merchant_type', merchant_type)
     currency_code?.iso_code && setValue('currency_code', currency_code.iso_code)
     setValue(
@@ -261,6 +263,15 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             label='Merchant Category'
             placeholder='Merchant Category'
             options={MERCHANT_CATEGORY_CODES}
+          />
+
+          <FormInput
+            name='mcc'
+            register={register}
+            errors={errors}
+            label='Merchant Category Code (MCC)'
+            placeholder='4-digit ISO 18245 MCC'
+            inputProps={{ inputMode: 'numeric', maxLength: 4 }}
           />
 
           <FormSelect

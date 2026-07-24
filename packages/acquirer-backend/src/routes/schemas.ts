@@ -18,6 +18,7 @@ export const MerchantSubmitDataSchema = z.object({
   monthly_turnover: z.string().nullable().default(null),
   currency_code: z.nativeEnum(CurrencyCodes).optional(),
   category_code: z.string().optional(),
+  mcc: z.string().regex(/^\d{4}$/).or(z.literal('')).optional().nullable(),
   merchant_type: z.nativeEnum(MerchantType).optional(),
   license_number: z.string().optional().optional()
 })

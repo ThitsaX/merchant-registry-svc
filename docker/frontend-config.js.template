@@ -1,0 +1,4 @@
+window.__RUNTIME_CONFIG__ = Object.freeze({
+  VITE_API_URL: '${VITE_API_URL}',
+  VITE_RECAPTCHA_SITE_KEY: '${VITE_RECAPTCHA_SITE_KEY}'
+})

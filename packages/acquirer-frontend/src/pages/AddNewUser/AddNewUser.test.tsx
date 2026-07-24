@@ -89,11 +89,12 @@ const hoistedValues = vi.hoisted(() => ({
   ],
 }))
 
+const mockCreateUser = vi.fn()
 const mockUserProfile = vi.fn()
 vi.mock('@/api/hooks/users', () => ({
   useCreateUser: () => ({
     isLoading: false,
-    mutateAsync: () => vi.fn(),
+    mutateAsync: mockCreateUser,
   }),
   useUserProfile: () => mockUserProfile(),
 }))
@@ -108,11 +109,15 @@ vi.mock('@/api/hooks/roles', () => ({
   }),
 }))
 
-describe('AddNewUser', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
+vi.mock('@/api/hooks/dfsps', () => ({
+  useDfsps: () => ({
+    isLoading: false,
+    isSuccess: true,
+    data: { data: [] },
+  }),
+}))
 
+describe('AddNewUser', () => {
   it('should show operator and auditor roles when user is admin', () => {
     mockUserProfile.mockReturnValue({
       isSuccess: true,
@@ -135,6 +140,18 @@ describe('AddNewUser', () => {
   })
 
   it('should call "createUser.mutateAsync" when form is submitted', async () => {
+    mockCreateUser.mockResolvedValueOnce({
+      data: {
+        id: 10,
+        email: 'john@gmail.com',
+      },
+      temporaryPassword: 'Temporary_234A',
+      mustChangePassword: true,
+      emailDelivery: {
+        provider: 'none',
+        status: 'disabled',
+      },
+    })
     mockUserProfile.mockReturnValue({
       isSuccess: true,
       data: {
@@ -143,8 +160,6 @@ describe('AddNewUser', () => {
         role: hoistedValues.roles[1],
       },
     })
-    const mutateAsyncSpy = vi.spyOn(vi, 'fn')
-
     render(
       <TestWrapper>
         <AddNewUser />
@@ -161,8 +176,15 @@ describe('AddNewUser', () => {
     fireEvent.change(roleInput, { target: { value: 'DFSP Operator' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => Promise.resolve)
-    expect(mutateAsyncSpy).toHaveBeenCalled()
+    await waitFor(() =>
+      expect(mockCreateUser).toHaveBeenCalledWith({
+        name: 'John',
+        email: 'john@gmail.com',
+        role: 'DFSP Operator',
+      })
+    )
+    expect(await screen.findByText('Temporary_234A')).toBeInTheDocument()
+    expect(screen.getByText(/shown only once/i)).toBeInTheDocument()
   })
 
   it('should reset form when "Cancel" button is clicked', () => {

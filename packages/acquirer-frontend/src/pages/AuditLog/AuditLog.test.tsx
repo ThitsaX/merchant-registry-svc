@@ -156,14 +156,14 @@ describe('AuditLog', () => {
   })
 
   it('should call "auditLogs.refetch" function when "Search" button is clicked', async () => {
+    const refetch = vi.fn()
     mockUsers.mockReturnValue({ data: hoistedValues.users, isLoading: false })
     mockAuditLogs.mockReturnValue({
       data: { data: hoistedValues.auditLogs, totalPages: 1 },
       isFetching: false,
       isSuccess: true,
-      refetch: () => vi.fn(),
+      refetch,
     })
-    const refetchSpy = vi.spyOn(vi, 'fn')
 
     render(
       <TestWrapper>
@@ -180,8 +180,6 @@ describe('AuditLog', () => {
     fireEvent.change(portalUserNameInput, { target: { value: 'DFSP 1 Admin 1' } })
     fireEvent.click(searchButton)
 
-    await waitFor(() => Promise.resolve())
-
-    expect(refetchSpy).toHaveBeenCalled()
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
   })
 })

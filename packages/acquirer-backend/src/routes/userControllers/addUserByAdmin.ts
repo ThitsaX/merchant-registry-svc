@@ -1,19 +1,16 @@
 import { type Response } from 'express'
 import logger from '../../services/logger'
 import { audit } from '../../utils/audit'
-import jwt from 'jsonwebtoken'
 import { PortalUserEntity } from '../../entity/PortalUserEntity'
 import { AppDataSource } from '../../database/dataSource'
 import { PortalRoleEntity } from '../../entity/PortalRoleEntity'
 import * as z from 'zod'
 import { AuditActionType, AuditTrasactionStatus, PortalUserStatus, PortalUserType } from 'shared-lib'
-import { EmailVerificationTokenEntity } from '../../entity/EmailVerificationToken'
-import { sendVerificationEmail } from '../../utils/sendGrid'
 import { DFSPEntity } from '../../entity/DFSPEntity'
 import { type AuthRequest } from '../../types/express'
-import { readEnv } from '../../setup/readEnv'
-import { JwtTokenEntity } from '../../entity/JwtTokenEntity'
-import ms from 'ms'
+import { hashPassword } from '../../utils/utils'
+import { generateTemporaryPassword } from '../../services/tempPassword'
+import { sendAccountCreatedNotification } from '../../services/email'
 
 const AddUserSchema = z.object({
   name: z.string(),
@@ -21,8 +18,6 @@ const AddUserSchema = z.object({
   role: z.string(),
   dfsp_id: z.number().or(z.string()).optional()
 })
-
-const JWT_SECRET = readEnv('JWT_SECRET', '') as string
 
 /**
  * @openapi
@@ -59,8 +54,8 @@ const JWT_SECRET = readEnv('JWT_SECRET', '') as string
  *                 required: false
  *                 nullable: true
  *     responses:
- *       200:
- *         description: User created. And Verification Email Sent
+ *       201:
+ *         description: User created with a one-time temporary password
  *       422:
  *         description: Validation error
  *       400:
@@ -154,7 +149,8 @@ export async function addUser (req: AuthRequest, res: Response) {
     newUser.name = name
     newUser.email = email
     newUser.user_type = newUserType
-    newUser.status = PortalUserStatus.UNVERIFIED
+    newUser.status = PortalUserStatus.ACTIVE
+    newUser.must_change_password = true
     newUser.role = roleObj
     newUser.created_by = portalUser
 
@@ -180,9 +176,14 @@ export async function addUser (req: AuthRequest, res: Response) {
       newUser.dfsp = dfsp
     }
 
-    // Start Transaction
+    const temporaryPassword = generateTemporaryPassword()
+    newUser.password = await hashPassword(temporaryPassword)
+
     await AppDataSource.manager.transaction(async (transactionalEntityManager) => {
       await transactionalEntityManager.save(newUser)
+    })
+
+    try {
       await audit(
         AuditActionType.ADD,
         AuditTrasactionStatus.SUCCESS,
@@ -190,32 +191,39 @@ export async function addUser (req: AuthRequest, res: Response) {
         'User Created',
         'PortalUserEntity',
         {},
-        { ...newUser },
-        null
+        {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: roleObj.name,
+          status: newUser.status,
+          must_change_password: newUser.must_change_password
+        },
+        portalUser
       )
+    } catch (error) {
+      logger.error('Could not write user-creation audit: %o', error)
+    }
 
-      // Generate Token using jwt
-      const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '1h' })
-
-      const jwtTokenObj = transactionalEntityManager.create(JwtTokenEntity, {
-        token,
-        user: newUser,
-        expires_at: new Date(Date.now() + ms('1h')),
-        last_used: new Date()
-      })
-
-      await transactionalEntityManager.save(jwtTokenObj)
-      await transactionalEntityManager.save(EmailVerificationTokenEntity, {
-        user: newUser,
-        token,
-        email: newUser.email
-      })
-
-      // Send Email with token
-      await sendVerificationEmail(newUser.email, token, roleObj.name)
+    const emailDelivery = await sendAccountCreatedNotification({
+      to: newUser.email,
+      name: newUser.name,
+      role: roleObj.name
     })
 
-    res.status(201).send({ message: 'User created. And Verification Email Sent', data: newUser })
+    const responseUser = {
+      ...newUser,
+      password: undefined,
+      created_by: undefined
+    }
+
+    res.status(201).send({
+      message: 'User created',
+      data: responseUser,
+      temporaryPassword,
+      mustChangePassword: true,
+      emailDelivery
+    })
   } catch (error) /* istanbul ignore next */ {
     await audit(
       AuditActionType.ACCESS,

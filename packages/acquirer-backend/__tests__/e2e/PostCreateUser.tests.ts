@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import * as emailUtils from '../../src/utils/sendGrid'
+import bcrypt from 'bcrypt'
 import request from 'supertest'
 import { type Application } from 'express'
 import { DefaultDFSPUsers, DefaultHubUsers } from '../../src/database/defaultUsers'
@@ -10,10 +10,6 @@ import { PortalUserStatus } from 'shared-lib'
 import { PortalPermissionEntity } from '../../src/entity/PortalPermissionEntity'
 import { PermissionsEnum } from '../../src/types/permissions'
 import { PortalRoleEntity } from '../../src/entity/PortalRoleEntity'
-const sgMail = require('@sendgrid/mail')
-
-jest.mock('../../src/utils/sendGrid')
-const mockedSendVerificationEmail = emailUtils.sendVerificationEmail as jest.MockedFunction<typeof emailUtils.sendVerificationEmail>
 
 export function testPostCreateUser (app: Application): void {
   let hubUserToken = ''
@@ -69,21 +65,6 @@ export function testPostCreateUser (app: Application): void {
     dfspUserRole.permissions.push(dfspCreatePortalUserPermission)
     dfspUserRole.permissions.push(dfspCreateDfspOperatorPermission)
     await AppDataSource.manager.save(dfspUserRole)
-  })
-
-  beforeEach(() => {
-    mockedSendVerificationEmail.mockResolvedValue(undefined)
-    sgMail.send.mockResolvedValue([
-      {
-        statusCode: 200,
-        body: '',
-        headers: {}
-      }
-    ])
-  })
-
-  afterEach(() => {
-    jest.clearAllMocks()
   })
 
   it('should respond with 401 when Authorization header is missing', async () => {
@@ -193,7 +174,7 @@ export function testPostCreateUser (app: Application): void {
     expect(res.body.message).toEqual('Invalid dfsp_id: DFSP Not found')
   })
 
-  it('should successfully create a user from hub admin and send verification email', async () => {
+  it('should create a user with a one-time temporary password and enforce its replacement', async () => {
     // Arrange
     await AppDataSource.manager.delete(PortalUserEntity, { email: 'new-user@example.com' })
 
@@ -210,7 +191,7 @@ export function testPostCreateUser (app: Application): void {
 
     // Assert
     expect(res.statusCode).toEqual(201)
-    expect(res.body.message).toEqual('User created. And Verification Email Sent')
+    expect(res.body.message).toEqual('User created')
     expect(res.body.data).toHaveProperty('id')
 
     expect(res.body.data).toHaveProperty('name')
@@ -218,7 +199,74 @@ export function testPostCreateUser (app: Application): void {
 
     expect(res.body.data).toHaveProperty('email')
     expect(res.body.data.email).toEqual('new-user@example.com')
-    expect(res.body.data.status).toEqual(PortalUserStatus.UNVERIFIED)
+    expect(res.body.data.status).toEqual(PortalUserStatus.ACTIVE)
+    expect(res.body.data.must_change_password).toBe(true)
+    expect(res.body.data).not.toHaveProperty('password')
+    expect(res.body.temporaryPassword).toHaveLength(16)
+    expect(res.body.mustChangePassword).toBe(true)
+    expect(res.body.emailDelivery).toEqual({
+      provider: 'none',
+      status: 'disabled'
+    })
+
+    const storedUser = await AppDataSource.manager.findOneOrFail(PortalUserEntity, {
+      where: { id: res.body.data.id }
+    })
+    expect(await bcrypt.compare(res.body.temporaryPassword, storedUser.password)).toBe(true)
+
+    const loginWithTemporaryPassword = await request(app)
+      .post('/api/v1/users/login')
+      .send({
+        email: 'new-user@example.com',
+        password: res.body.temporaryPassword
+      })
+    expect(loginWithTemporaryPassword.statusCode).toBe(200)
+    expect(loginWithTemporaryPassword.body.mustChangePassword).toBe(true)
+
+    const blockedRequest = await request(app)
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${loginWithTemporaryPassword.body.token}`)
+    expect(blockedRequest.statusCode).toBe(403)
+    expect(blockedRequest.body.code).toBe('PASSWORD_CHANGE_REQUIRED')
+
+    const changedPassword = 'a-new-secure-password'
+    const changeResponse = await request(app)
+      .put('/api/v1/users/change-password')
+      .set('Authorization', `Bearer ${loginWithTemporaryPassword.body.token}`)
+      .send({
+        currentPassword: res.body.temporaryPassword,
+        newPassword: changedPassword
+      })
+    expect(changeResponse.statusCode).toBe(200)
+
+    const revokedTokenRequest = await request(app)
+      .get('/api/v1/users/profile')
+      .set('Authorization', `Bearer ${loginWithTemporaryPassword.body.token}`)
+    expect(revokedTokenRequest.statusCode).toBe(401)
+
+    const loginWithChangedPassword = await request(app)
+      .post('/api/v1/users/login')
+      .send({
+        email: 'new-user@example.com',
+        password: changedPassword
+      })
+    expect(loginWithChangedPassword.statusCode).toBe(200)
+    expect(loginWithChangedPassword.body.mustChangePassword).toBe(false)
+
+    const adminResetResponse = await request(app)
+      .post(`/api/v1/users/${res.body.data.id}/reset-password`)
+      .set('Authorization', `Bearer ${hubUserToken}`)
+    expect(adminResetResponse.statusCode).toBe(200)
+    expect(adminResetResponse.body.temporaryPassword).toHaveLength(16)
+    expect(adminResetResponse.body.emailDelivery.status).toBe('disabled')
+
+    const oldPasswordLogin = await request(app)
+      .post('/api/v1/users/login')
+      .send({
+        email: 'new-user@example.com',
+        password: changedPassword
+      })
+    expect(oldPasswordLogin.statusCode).toBe(400)
 
     // Clean up
     await AppDataSource.query('PRAGMA foreign_keys = OFF;')
@@ -226,7 +274,7 @@ export function testPostCreateUser (app: Application): void {
     await AppDataSource.query('PRAGMA foreign_keys = ON;')
   })
 
-  it('should successfully create a user from dfsp admin and send verification email', async () => {
+  it('should successfully create a user from dfsp admin without requiring email', async () => {
     // Arrange
     const newDfspOperatorEmail = 'new-dfsp-operator-user@example.com'
     await AppDataSource.manager.delete(PortalUserEntity, { email: newDfspOperatorEmail })
@@ -243,7 +291,7 @@ export function testPostCreateUser (app: Application): void {
 
     // Assert
     expect(res.statusCode).toEqual(201)
-    expect(res.body.message).toEqual('User created. And Verification Email Sent')
+    expect(res.body.message).toEqual('User created')
     expect(res.body.data).toHaveProperty('id')
 
     expect(res.body.data).toHaveProperty('name')
@@ -252,7 +300,9 @@ export function testPostCreateUser (app: Application): void {
     expect(res.body.data).toHaveProperty('email')
     expect(res.body.data.email).toEqual(newDfspOperatorEmail)
 
-    expect(res.body.data.status).toEqual(PortalUserStatus.UNVERIFIED)
+    expect(res.body.data.status).toEqual(PortalUserStatus.ACTIVE)
+    expect(res.body.data.must_change_password).toBe(true)
+    expect(res.body.emailDelivery.status).toBe('disabled')
 
     // Clean up
     await AppDataSource.query('PRAGMA foreign_keys = OFF;')

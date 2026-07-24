@@ -1,4 +1,4 @@
-import type { ServerUser } from '@/types/users'
+import type { ServerUser, TemporaryPasswordResponse } from '@/types/users'
 import instance from '@/lib/axiosInstance'
 import { type AddNewUserForm } from '@/lib/validations/addNewUser'
 
@@ -8,7 +8,14 @@ export async function getUsers() {
 }
 
 export async function createUser(user: AddNewUserForm) {
-  const response = await instance.post('/users/add', user)
+  const response = await instance.post<TemporaryPasswordResponse>('/users/add', user)
+  return response.data
+}
+
+export async function resetUserTemporaryPassword(userId: string | number) {
+  const response = await instance.post<TemporaryPasswordResponse>(
+    `/users/${userId}/reset-password`
+  )
   return response.data
 }
 

@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import express, { type Request, type Response } from 'express'
-import { readEnv } from '../setup/readEnv'
-import { checkSendGridAPIKeyValidity } from '../utils/sendGrid'
 import { ApplicationStateEntity } from '../entity/ApplicationStateEntity'
 import { AppDataSource } from '../database/dataSource'
 import { authenticateJWT } from '../middleware/authenticate'
 import { checkPortalUserType } from '../middleware/checkUserType'
 import { PortalUserType } from 'shared-lib'
+import { getEmailProvider } from '../services/email'
 
 /**
  * @openapi
@@ -65,23 +64,31 @@ router.get(
  * tags:
  *   name: Health Check
  *
- * /health-check/sendgrid-email-service:
+ * /health-check/email-service:
  *   get:
  *     tags:
  *       - Health Check
  *     summary: Health Check
  *     responses:
  *       200:
- *         description: Health Check for SendGrid Email Service
+ *         description: Health Check for the configured email provider
  */
-router.get('/health-check/sendgrid-email-service', async (_req: Request, res: Response) => {
-  const apiKey = readEnv('SENDGRID_API_KEY', '<invalid-api-key>') as string
-  const isValid = await checkSendGridAPIKeyValidity(apiKey)
-  if (!isValid) {
-    res.status(500).send({ message: 'SendGrid API Key is Invalid' })
-    return
+async function emailHealthCheck (_req: Request, res: Response): Promise<void> {
+  try {
+    const health = await getEmailProvider().checkHealth()
+    res.status(health.status === 'unhealthy' ? 503 : 200).send(health)
+  } catch (error: any) {
+    res.status(503).send({
+      enabled: true,
+      provider: process.env.EMAIL_PROVIDER ?? 'unknown',
+      status: 'unhealthy',
+      message: error.message
+    })
   }
-  res.send({ message: 'OK' })
-})
+}
+
+router.get('/health-check/email-service', emailHealthCheck)
+// Compatibility alias for existing monitoring configurations.
+router.get('/health-check/sendgrid-email-service', emailHealthCheck)
 
 export default router

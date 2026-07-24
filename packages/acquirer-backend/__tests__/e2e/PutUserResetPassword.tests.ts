@@ -56,8 +56,14 @@ export function testPutUserResetPassword (app: Application): void {
     // Reset password back to original
     res = await request(app)
       .put('/api/v1/users/reset-password')
-      .set('Authorization', `Bearer ${hubUserToken}`)
+      .set('Authorization', `Bearer ${res2.body.token}`)
       .send({ password: 'password' })
+    expect(res.statusCode).toEqual(201)
+
+    const originalPasswordLogin = await request(app)
+      .post('/api/v1/users/login')
+      .send({ email: hubUserEmail, password: hubUserPwd })
+    hubUserToken = originalPasswordLogin.body.token
   })
 
   it('should successfully reset user password with RESETPASSWORD status', async () => {
@@ -88,7 +94,13 @@ export function testPutUserResetPassword (app: Application): void {
     // Reset password back to original
     res = await request(app)
       .put('/api/v1/users/reset-password')
-      .set('Authorization', `Bearer ${hubUserToken}`)
+      .set('Authorization', `Bearer ${res2.body.token}`)
       .send({ password: 'password' })
+    expect(res.statusCode).toEqual(201)
+
+    const originalPasswordLogin = await request(app)
+      .post('/api/v1/users/login')
+      .send({ email: hubUserEmail, password: hubUserPwd })
+    hubUserToken = originalPasswordLogin.body.token
   })
 }

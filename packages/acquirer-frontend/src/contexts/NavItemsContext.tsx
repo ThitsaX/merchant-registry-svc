@@ -95,6 +95,23 @@ export const NAV_ITEMS = [
   },
 ]
 
+export const filterNavItemsByPermissions = (
+  userPermissions: string[]
+): typeof NAV_ITEMS =>
+  NAV_ITEMS.map(navItem => {
+    const newItem = { ...navItem }
+
+    if (newItem.subNavItems) {
+      newItem.subNavItems = newItem.subNavItems.filter(subNavItem =>
+        subNavItem.permissions.some(permission => userPermissions.includes(permission))
+      )
+    }
+
+    return newItem.permissions.some(permission => userPermissions.includes(permission))
+      ? newItem
+      : null
+  }).filter(item => item !== null) as typeof NAV_ITEMS
+
 interface NavItemsContextProps {
   navItems: typeof NAV_ITEMS
   setNavItems: React.Dispatch<React.SetStateAction<typeof NAV_ITEMS>>
@@ -120,35 +137,8 @@ const NavItemsProvider = ({ children }: { children: React.ReactNode }) => {
     if (!token) return
 
     getUserProfile().then(userProfile => {
-      // Remove navigation item from sidebar if the user doesn't have the required permissions
       const userPermissions = userProfile?.role?.permissions || []
-
-      const filteredNavItems = NAV_ITEMS.map(navItem => {
-        // Copy the navItem to avoid mutating the original
-        const newItem = { ...navItem }
-
-        if (newItem.subNavItems) {
-          newItem.subNavItems = newItem.subNavItems.filter(subNavItem => {
-            return subNavItem.permissions
-              ? subNavItem.permissions.some(permission =>
-                  userPermissions.includes(permission)
-                )
-              : true
-          })
-        }
-
-        // Check the main navItem
-        if (
-          newItem.permissions &&
-          !newItem.permissions.some(permission => userPermissions.includes(permission))
-        ) {
-          return null // Exclude the main navItem if user lacks permissions
-        }
-
-        return newItem
-      }).filter(item => item !== null) // Remove null items
-
-      setNavItems(filteredNavItems as typeof NAV_ITEMS)
+      setNavItems(filterNavItemsByPermissions(userPermissions))
     })
   }, [])
 

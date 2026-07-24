@@ -4,18 +4,15 @@ import { vi } from 'vitest'
 import TestWrapper from '@/__tests__/TestWrapper'
 import { SetPassword } from '..'
 
+const mockSetPassword = vi.fn()
 vi.mock('@/api/hooks/auth', () => ({
   useSetPassword: () => ({
     isLoading: false,
-    mutate: () => vi.fn(),
+    mutate: mockSetPassword,
   }),
 }))
 
 describe('SetPassword', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('should render the correct password visibility toggle icon', () => {
     render(
       <TestWrapper>
@@ -58,8 +55,6 @@ describe('SetPassword', () => {
   })
 
   it('should call "setPassword.mutate" function when "Confirm" button is clicked', async () => {
-    const setPasswordSpy = vi.spyOn(vi, 'fn')
-
     render(
       <TestWrapper>
         <SetPassword />
@@ -75,8 +70,6 @@ describe('SetPassword', () => {
     fireEvent.change(confirmPasswordInput, { target: { value: 'password' } })
     fireEvent.submit(confirmButton)
 
-    await waitFor(() => Promise.resolve)
-
-    expect(setPasswordSpy).toHaveBeenCalled()
+    await waitFor(() => expect(mockSetPassword).toHaveBeenCalledWith('password'))
   })
 })

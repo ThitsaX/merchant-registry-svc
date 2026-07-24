@@ -31,6 +31,7 @@ export async function merchantsToXlsxWorkbook (merchants: MerchantEntity[]): Pro
     { header: 'registration_status', key: 'registration_status', width: 32 },
     { header: 'registration_status_reason', key: 'registration_status_reason', width: 32 },
     { header: 'category', key: 'category', width: 32 },
+    { header: 'mcc', key: 'mcc', width: 12 },
     { header: 'currency', key: 'currency', width: 32 },
     { header: 'license_number', key: 'license_number', width: 32 },
     { header: 'license_document_link', key: 'license_document_link', width: 32 },
@@ -108,6 +109,7 @@ export async function merchantsToXlsxWorkbook (merchants: MerchantEntity[]): Pro
       registration_status: merchant.registration_status,
       registration_status_reason: merchant.registration_status_reason,
       category: `${category.category_code} - ${category.description}`,
+      mcc: merchant.mcc,
       currency: `${currency.iso_code} - ${currency.description}`,
       /* istanbul ignore next */
       license_number: merchant.business_licenses[0]?.license_number,

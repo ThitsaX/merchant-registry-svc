@@ -14,8 +14,4 @@ registryOracle:
     dbPasswordSecret:
       name: merchant-db-secret
       key: mysql-root-password
-    rabbitmqHost: rabbitmq-clusterip-service
-    rabbitmqPort: "5672"
-    rabbitmqUsername: guest
-    rabbitmqPassword: guest
-
+    registryInternalApiKey: change-me

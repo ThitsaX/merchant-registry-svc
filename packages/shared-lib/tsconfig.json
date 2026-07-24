@@ -11,8 +11,7 @@
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
-    "declaration": true,
-    "composite": true
+    "declaration": true
   },
   "include": ["**/src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

@@ -13,21 +13,31 @@ export interface DFSPData {
 export async function registerEndpointDFSP (dfspData: DFSPData): Promise<APIAccessEntity> {
   logger.debug('Registering DFSP: %o', dfspData)
 
-  let dfsp = await AppDataSource.manager.findOne(DFSPEntity, { where: { fspId: dfspData.fspId } })
-  if (dfsp == null) {
-    dfsp = new DFSPEntity()
-  }
+  const apiAccess = await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    let dfsp = await transactionalEntityManager.findOne(DFSPEntity, {
+      where: { fspId: dfspData.fspId }
+    })
+    if (dfsp === null) dfsp = new DFSPEntity()
 
-  dfsp.fspId = dfspData.fspId
-  dfsp.dfsp_name = dfspData.dfsp_name
+    dfsp.fspId = dfspData.fspId
+    dfsp.dfsp_name = dfspData.dfsp_name
+    dfsp = await transactionalEntityManager.save(DFSPEntity, dfsp)
 
-  const apiAccess = new APIAccessEntity()
-  apiAccess.client_secret = dfspData.client_secret
-  apiAccess.dfsp = dfsp
+    const existingAccess = await transactionalEntityManager.findOne(APIAccessEntity, {
+      where: { client_secret: dfspData.client_secret },
+      relations: ['dfsp']
+    })
+    if (existingAccess !== null) {
+      if (existingAccess.dfsp.fspId !== dfspData.fspId) {
+        throw new Error('Client secret is already assigned to another DFSP')
+      }
+      return existingAccess
+    }
 
-  await AppDataSource.manager.transaction(async transactionalEntityManager => {
-    await transactionalEntityManager.save(DFSPEntity, dfsp as DFSPEntity) // I guranatee that dfsp is not null here
-    await transactionalEntityManager.save(APIAccessEntity, apiAccess)
+    const newAccess = new APIAccessEntity()
+    newAccess.client_secret = dfspData.client_secret
+    newAccess.dfsp = dfsp
+    return await transactionalEntityManager.save(APIAccessEntity, newAccess)
   })
 
   logger.debug('DFSP registered: %o', dfspData)

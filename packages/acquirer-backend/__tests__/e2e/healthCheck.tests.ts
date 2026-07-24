@@ -1,6 +1,5 @@
 import request from 'supertest'
 import { type Application } from 'express'
-const sgMail = require('@sendgrid/mail')
 
 export function testSucceedHealthCheck (app: Application): void {
   it('should respond 200 status with OK message', async () => {
@@ -17,50 +16,25 @@ export function testSucceedHealthCheck (app: Application): void {
 }
 
 export function testSucceedHealthCheckSendGridService (app: Application): void {
-  describe('SendGrid healthCheck route Test', () => {
-    beforeEach(() => {
-    // Clearing all instances and calls to constructor and all methods:
-      jest.clearAllMocks()
-    })
-
-    it('should respond 200 status with OK message for sendgrid email service', async () => {
-    // Arrange
-      // Mock the send method to simulate a successful response
-      sgMail.send.mockResolvedValue([
-        {
-          statusCode: 200,
-          body: '',
-          headers: {}
-        }
-      ])
-      // Act
+  describe('Email provider health-check route', () => {
+    it('should report disabled email as healthy optional configuration', async () => {
       const res = await request(app)
-        .get('/api/v1/health-check/sendgrid-email-service')
+        .get('/api/v1/health-check/email-service')
 
-      // Assert
       expect(res.statusCode).toEqual(200)
-      expect(res.body).toHaveProperty('message')
-      expect(res.body.message).toEqual('OK')
+      expect(res.body).toEqual({
+        enabled: false,
+        provider: 'none',
+        status: 'disabled'
+      })
     })
 
-    it('should respond 500 with SendGrid API Key is Invalid message', async () => {
-      // Arrange
-      // Mock the send method to simulate a failure response
-      sgMail.send.mockRejectedValue({
-        response: {
-          statusCode: 500,
-          body: 'SendGrid API Key is Invalid'
-        }
-      })
-
-      // Act
+    it('should preserve the legacy SendGrid health-check URL as an alias', async () => {
       const res = await request(app)
         .get('/api/v1/health-check/sendgrid-email-service')
 
-      // Assert
-      expect(res.statusCode).toEqual(500)
-      expect(res.body).toHaveProperty('message')
-      expect(res.body.message).toEqual('SendGrid API Key is Invalid')
+      expect(res.statusCode).toEqual(200)
+      expect(res.body.status).toEqual('disabled')
     })
   })
 }

@@ -6,7 +6,6 @@ import setupMiddlewares from './setup/middlewaresSetup'
 import setupRoutes from './setup/routesSetup'
 import setupServer from './setup/serverSetup'
 import { readEnv } from './setup/readEnv'
-import './services/messageQueueConsumer'
 import { tryInitializeDatabase } from './setup/serviceInitializersSetup'
 
 const HOSTNAME: string = readEnv('HOST', 'localhost') as string

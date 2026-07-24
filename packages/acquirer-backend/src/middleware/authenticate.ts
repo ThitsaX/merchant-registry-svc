@@ -48,6 +48,23 @@ export async function authenticateJWT (req: Request, res: Response, next: NextFu
     req.user = jwtTokenRecord.user
     req.token = token
 
+    const requestPath = req.originalUrl.split('?')[0]
+    const forcedPasswordChangePaths = new Set([
+      '/api/v1/users/change-password',
+      '/api/v1/users/profile',
+      '/api/v1/users/logout'
+    ])
+
+    if (
+      jwtTokenRecord.user.must_change_password &&
+      !forcedPasswordChangePaths.has(requestPath)
+    ) {
+      return res.status(403).send({
+        code: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'Password change required'
+      })
+    }
+
     await AppDataSource.manager.update(JwtTokenEntity, { token }, { last_used: new Date() })
     next()
   } catch (err) {

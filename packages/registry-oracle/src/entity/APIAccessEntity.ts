@@ -10,7 +10,7 @@ export class APIAccessEntity {
   @PrimaryGeneratedColumn()
     id!: number
 
-  @Column({ nullable: false })
+  @Column({ nullable: false, unique: true })
     client_secret!: string
 
   @ManyToOne(

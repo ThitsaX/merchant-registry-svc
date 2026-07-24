@@ -169,6 +169,7 @@ export function testPutMerchantDraft (app: Application): void {
       .field('monthly_turnover', 1.0)
       .field('currency_code', 'USD')
       .field('category_code', '01120')
+      .field('mcc', '5814')
       .field('merchant_type', MerchantType.SMALL_SHOP)
       .field('license_number', '987654321')
 
@@ -191,6 +192,7 @@ export function testPutMerchantDraft (app: Application): void {
     expect(res.body.data.currency_code).toEqual('USD')
     expect(res.body.data).toHaveProperty('category_code')
     expect(res.body.data.category_code).toEqual('01120')
+    expect(res.body.data.mcc).toEqual('5814')
     expect(res.body.data).toHaveProperty('merchant_type')
     expect(res.body.data.merchant_type).toEqual(MerchantType.SMALL_SHOP)
     expect(res.body.data).toHaveProperty('business_licenses')

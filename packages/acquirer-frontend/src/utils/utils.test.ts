@@ -48,6 +48,9 @@ describe('formatLatitudeLongitude', () => {
 
 describe('downloadMerchantsBlobAsXlsx', () => {
   it('should download blob as xlsx', () => {
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined)
     vi.stubGlobal('URL', {
       createObjectURL: () => fn('createObjectURL'),
       revokeObjectURL: () => fn('revokeObjectURL'),
@@ -58,6 +61,7 @@ describe('downloadMerchantsBlobAsXlsx', () => {
 
     expect(fn.mock.calls[0]).toEqual(['createObjectURL'])
     expect(fn.mock.calls[1]).toEqual(['revokeObjectURL'])
+    expect(clickSpy).toHaveBeenCalledTimes(1)
   })
 })
 

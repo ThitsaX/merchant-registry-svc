@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === 'test') {
     synchronize: true,
     logging: false,
     entities: [
-      path.join(__dirname, '../entity/*.ts')
+      path.join(__dirname, `../entity/*${path.extname(__filename)}`)
     ],
     migrations: [],
     subscribers: []
@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'test') {
     synchronize: true,
     logging: false,
     entities: [
-      path.join(__dirname, '../entity/*.ts')
+      path.join(__dirname, `../entity/*${path.extname(__filename)}`)
     ],
     migrations: [],
     subscribers: []

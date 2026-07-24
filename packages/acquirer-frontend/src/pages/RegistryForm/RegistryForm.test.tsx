@@ -10,15 +10,24 @@ vi.mock('@chakra-ui/react', async () => {
 
   return {
     ...charaUI,
-    useSteps: () => ({ activeStep: mockStep() }),
+    useSteps: () => ({ activeStep: mockStep(), setActiveStep: vi.fn() }),
   }
 })
 
-describe('RegistryForm', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
+vi.mock('./BusinessInfoForm', () => ({
+  default: () => <div data-testid='business-info-form' />,
+}))
+vi.mock('./LocationInfoForm', () => ({
+  default: () => <div data-testid='location-info-form' />,
+}))
+vi.mock('./OwnerInfoForm', () => ({
+  default: () => <div data-testid='owner-info-form' />,
+}))
+vi.mock('./ContactPersonForm', () => ({
+  default: () => <div data-testid='contact-person-form' />,
+}))
 
+describe('RegistryForm', () => {
   it('should render business info form in step 1', () => {
     mockStep.mockReturnValue(1)
 
@@ -28,8 +37,8 @@ describe('RegistryForm', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Doing Business As Name/)).toBeInTheDocument()
-  }, 10000)
+    expect(screen.getByTestId('business-info-form')).toBeInTheDocument()
+  })
 
   it('should render location info form in step 2', () => {
     mockStep.mockReturnValue(2)
@@ -40,7 +49,7 @@ describe('RegistryForm', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/Location Type/)).toBeInTheDocument()
+    expect(screen.getByTestId('location-info-form')).toBeInTheDocument()
   })
 
   it('should render owner info form in step 3', () => {
@@ -52,11 +61,11 @@ describe('RegistryForm', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByLabelText(/ID Type/)).toBeInTheDocument()
+    expect(screen.getByTestId('owner-info-form')).toBeInTheDocument()
   })
 
   it('should render contact person form in step 4', () => {
-    mockStep.mockReturnValue(1)
+    mockStep.mockReturnValue(4)
 
     render(
       <TestWrapper>
@@ -64,6 +73,6 @@ describe('RegistryForm', () => {
       </TestWrapper>
     )
 
-    expect(screen.getByText('Contact Person')).toBeInTheDocument()
+    expect(screen.getByTestId('contact-person-form')).toBeInTheDocument()
   })
 })

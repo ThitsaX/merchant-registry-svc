@@ -7,8 +7,6 @@ import setupRoutes from './setup/routesSetup'
 import setupServer from './setup/serverSetup'
 import { readEnv } from './setup/readEnv'
 import { tryInitializeDatabase, tryInitializeS3 } from './setup/serviceInitializersSetup'
-import { sendGridSetup } from './setup/checkSendgridEmailService'
-import './services/messageQueue'
 import ms from 'ms'
 import logger from './services/logger'
 
@@ -18,9 +16,6 @@ const PORT: number = readEnv('PORT', 3000, true) as number
 const app = express()
 app.use(express.json())
 app.use(cors())
-
-sendGridSetup()
-  .catch((_err) => {})
 
 setupMiddlewares(app)
 setupSwagger(app)

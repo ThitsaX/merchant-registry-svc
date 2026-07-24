@@ -4,18 +4,15 @@ import { describe, it, vi } from 'vitest'
 import TestWrapper from '@/__tests__/TestWrapper'
 import { Login } from '..'
 
+const mockLogin = vi.fn()
 vi.mock('@/api/hooks/auth', () => ({
   useLogin: () => ({
     isLoading: false,
-    mutate: () => vi.fn(),
+    mutate: mockLogin,
   }),
 }))
 
 describe('Login', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('should render the correct password toggle icon', () => {
     render(
       <TestWrapper>
@@ -36,7 +33,7 @@ describe('Login', () => {
     expect(hidePasswordIconButton).toBeNull()
   })
 
-  it('should have correct submitted values in onSubmit function', () => {
+  it('submits the login credentials', async () => {
     render(
       <TestWrapper>
         <Login />
@@ -45,39 +42,18 @@ describe('Login', () => {
 
     const emailInput: HTMLInputElement = screen.getByLabelText('Email')
     const passwordInput: HTMLInputElement = screen.getByLabelText('Password')
-    const loginButton: HTMLButtonElement = screen.getByText('Log In')
-    const loginForm: HTMLFormElement = screen.getByTestId('login-form')
+    const loginForm = screen.getByTestId('login-form')
 
     fireEvent.change(emailInput, { target: { value: 'john@gmail.com' } })
     fireEvent.change(passwordInput, { target: { value: 'password' } })
-    fireEvent.submit(loginButton)
+    fireEvent.submit(loginForm)
 
-    const formData = new FormData(loginForm)
-    const [email, password] = formData.entries()
-
-    expect(emailInput.value).toEqual(email[1])
-    expect(passwordInput.value).toEqual(password[1])
-  })
-
-  it('should call "login.mutate" function when "Log In" button is clicked', async () => {
-    const loginSpy = vi.spyOn(vi, 'fn')
-
-    render(
-      <TestWrapper>
-        <Login />
-      </TestWrapper>
+    await waitFor(() =>
+      expect(mockLogin).toHaveBeenCalledWith({
+        email: 'john@gmail.com',
+        password: 'password',
+        recaptchaToken: '',
+      })
     )
-
-    const emailInput: HTMLInputElement = screen.getByLabelText('Email')
-    const passwordInput: HTMLInputElement = screen.getByLabelText('Password')
-    const loginButton: HTMLButtonElement = screen.getByText('Log In')
-
-    fireEvent.change(emailInput, { target: { value: 'john@gmail.com' } })
-    fireEvent.change(passwordInput, { target: { value: 'password' } })
-    fireEvent.submit(loginButton)
-
-    await waitFor(() => Promise.resolve)
-
-    expect(loginSpy).toHaveBeenCalled()
   })
 })

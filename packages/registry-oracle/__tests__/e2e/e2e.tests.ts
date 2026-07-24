@@ -3,9 +3,9 @@ import setupRoutes from '../../src/setup/routesSetup'
 import logger from '../../src/services/logger'
 import { AppDataSource } from '../../src/database/dataSource'
 import { initializeDatabase } from '../../src/database/initDatabase'
-import { disconnectMessageQueue } from '../../src/services/messageQueueConsumer'
 import { GETParticipantsTests } from './GETParticipants.tests'
 import { POSTParticipantsTests } from './POSTParticipants.tests'
+import { internalRoutesTests } from './InternalRoutes.tests'
 
 logger.silent = true
 const app = express()
@@ -19,7 +19,6 @@ describe('E2E API Tests', () => {
 
   afterAll(async () => {
     await AppDataSource.destroy()
-    await disconnectMessageQueue()
   })
 
   describe('GET Participants', () => {
@@ -28,5 +27,9 @@ describe('E2E API Tests', () => {
 
   describe('POST Participants', () => {
     POSTParticipantsTests(app)
+  })
+
+  describe('Internal HTTP API', () => {
+    internalRoutesTests(app)
   })
 })

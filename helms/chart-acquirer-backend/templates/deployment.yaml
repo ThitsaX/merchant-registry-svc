@@ -37,19 +37,25 @@ spec:
               secretKeyRef:
                 name: {{ .Release.Name }}-merchant-db-secret
                 key: mysql-root-password
+          - name: EMAIL_PROVIDER
+            value: "{{ .Values.acquirerBackend.env.emailProvider }}"
+          - name: EMAIL_FROM
+            value: "{{ .Values.acquirerBackend.env.emailFrom }}"
           - name: SENDGRID_API_KEY
             value: "{{ .Values.acquirerBackend.env.sendgridApiKey }}"
-          - name: SENDER_EMAIL
-            value: "{{ .Values.acquirerBackend.env.senderEmail }}"
 
           - name: S3_ENDPOINT
             value: "{{ .Release.Name }}-{{ .Values.acquirerBackend.env.s3Endpoint }}"
 
-          - name: RABBITMQ_HOST
-            value: "{{ .Release.Name }}-{{ .Values.acquirerBackend.env.rabbitmqHost }}"
-          - name: RABBITMQ_PORT
-            value: "{{ .Values.acquirerBackend.env.rabbitmqPort }}"
-          - name: RABBITMQ_USERNAME
-            value: "{{ .Values.acquirerBackend.env.rabbitmqUsername }}"
-          - name: RABBITMQ_PASSWORD
-            value: "{{ .Values.acquirerBackend.env.rabbitmqPassword }}"
+          - name: REGISTRY_ORACLE_URL
+            value: "http://{{ .Release.Name }}-{{ .Values.acquirerBackend.env.registryOracleHost }}:{{ .Values.acquirerBackend.env.registryOraclePort }}"
+          - name: REGISTRY_INTERNAL_API_KEY
+            value: "{{ .Values.acquirerBackend.env.registryInternalApiKey }}"
+          - name: REGISTRY_HTTP_TIMEOUT_MS
+            value: "{{ .Values.acquirerBackend.env.registryHttpTimeoutMs }}"
+          - name: REGISTRY_HTTP_RETRIES
+            value: "{{ .Values.acquirerBackend.env.registryHttpRetries }}"
+          - name: EMVCO_MERCHANT_ACCOUNT_GUI
+            value: "{{ .Values.acquirerBackend.env.emvcoMerchantAccountGui }}"
+          - name: EMVCO_DEFAULT_MCC
+            value: "{{ .Values.acquirerBackend.env.emvcoDefaultMcc }}"

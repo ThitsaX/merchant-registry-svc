@@ -29,6 +29,17 @@ vi.mock('@/api/hooks/users', () => ({
   useUserStatusUpdate: () => ({
     mutate: vi.fn(),
   }),
+  useResetUserTemporaryPassword: () => ({
+    mutate: vi.fn(),
+  }),
+  useUserProfile: () => ({
+    data: {
+      id: 1,
+      role: {
+        permissions: ['Create Portal Users'],
+      },
+    },
+  }),
 }))
 
 describe('UserManagement', () => {

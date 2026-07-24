@@ -218,7 +218,7 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     'postMerchantContactPerson',
     'Contact Person Saved',
     'MerchantEntity',
-    {}, { ...savedContactPerson, merchant: undefined } ?? {}, portalUser
+    {}, { ...savedContactPerson, merchant: undefined }, portalUser
   )
 
   return res.status(201).send({

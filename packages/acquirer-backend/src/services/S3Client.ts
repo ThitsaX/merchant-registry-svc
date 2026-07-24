@@ -2,7 +2,7 @@ import path from 'path'
 import multer from 'multer'
 import logger from './logger'
 import dotenv from 'dotenv'
-import { Client, type UploadedObjectInfo } from 'minio'
+import { Client } from 'minio'
 import { convertURLFriendly } from '../utils/utils'
 import { type MerchantEntity } from '../entity/MerchantEntity'
 import { type DFSPEntity } from '../entity/DFSPEntity'
@@ -64,6 +64,8 @@ export const minioClient = new Client({
   accessKey,
   secretKey
 })
+
+type UploadedObjectInfo = Awaited<ReturnType<Client['putObject']>>
 
 export async function createMerchantDocumentBucket (): Promise<void> {
   const exists = await minioClient.bucketExists(merchantDocumentBucketName)

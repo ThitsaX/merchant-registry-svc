@@ -30,10 +30,11 @@ const hoistedValues = vi.hoisted(() => ({
 }))
 
 const mockAllMerchants = vi.fn()
+const mockExportMerchants = vi.fn()
 vi.mock('@/api/hooks/merchants', () => ({
   useAllMerchants: () => mockAllMerchants(),
   useExportMerchants: () => ({
-    mutateAsync: () => vi.fn(),
+    mutateAsync: mockExportMerchants,
   }),
   useMerchant: () => ({}),
 }))
@@ -169,14 +170,14 @@ describe('AllMerchantRecords', () => {
   })
 
   it('should call "allMerchants.refetch" function when the filter form is submitted', async () => {
+    const refetch = vi.fn()
     mockUsers.mockReturnValue({ data: hoistedValues.users, isLoading: false })
     mockAllMerchants.mockReturnValue({
       data: { data: hoistedValues.allMerchants, totalPages: 1 },
       isFetching: false,
       isSuccess: true,
-      refetch: () => vi.fn(),
+      refetch,
     })
-    const refetchSpy = vi.spyOn(vi, 'fn')
 
     render(
       <TestWrapper>
@@ -187,20 +188,17 @@ describe('AllMerchantRecords', () => {
     const filterForm = screen.getByTestId('filter-form')
     fireEvent.submit(filterForm)
 
-    await waitFor(() => Promise.resolve)
-
-    expect(refetchSpy).toHaveBeenCalled()
+    await waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
   })
 
-  it('should call "exportMerchants.mutateAsync" function when "Export" button is clicked', () => {
+  it('should call "exportMerchants.mutateAsync" function when "Export" button is clicked', async () => {
+    mockExportMerchants.mockResolvedValue(new Blob())
     mockUsers.mockReturnValue({ data: hoistedValues.users, isLoading: false })
     mockAllMerchants.mockReturnValue({
       data: { data: hoistedValues.allMerchants, totalPages: 1 },
       isFetching: false,
       isSuccess: true,
     })
-    const exportMerchantsSpy = vi.spyOn(vi, 'fn')
-
     render(
       <TestWrapper>
         <AllMerchantRecords />
@@ -210,7 +208,7 @@ describe('AllMerchantRecords', () => {
     const exportButton = screen.getByText('Export')
     fireEvent.click(exportButton)
 
-    expect(exportMerchantsSpy).toHaveBeenCalled()
+    await waitFor(() => expect(mockExportMerchants).toHaveBeenCalledTimes(1))
   })
 
   it('should render merchant info modal when "View Details" button is clicked', () => {

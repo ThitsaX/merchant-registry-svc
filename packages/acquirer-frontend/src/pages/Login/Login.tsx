@@ -23,6 +23,7 @@ import { loginSchema, type LoginForm } from '@/lib/validations/login'
 import { useLogin } from '@/api/hooks/auth'
 import { CustomButton } from '@/components/ui'
 import { FormInput } from '@/components/form'
+import { RECAPTCHA_SITE_KEY } from '@/lib/runtimeConfig'
 
 const Login = () => {
   const [isPasswordShown, setIsPasswordShown] = useState(false)
@@ -37,7 +38,7 @@ const Login = () => {
 
   const recaptchaRef = useRef(null)
   const login = useLogin(recaptchaRef)
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+  const recaptchaSiteKey = RECAPTCHA_SITE_KEY
 
   const onSubmit = (values: LoginForm) => {
     login.mutate({

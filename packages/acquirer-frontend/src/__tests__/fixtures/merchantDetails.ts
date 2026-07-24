@@ -22,6 +22,7 @@ export const createBaseMerchantDetails = (
   employees_num: '6 - 10' as NumberOfEmployees,
   monthly_turnover: '10000',
   merchant_type: 'Small Shop' as MerchantType,
+  mcc: '5812',
   category_code: { category_code: '10120', description: 'Test Category' },
   currency_code: { iso_code: 'USD' as CurrencyCodes, description: 'US Dollar' },
   allow_block_status: 'Pending',

@@ -63,6 +63,10 @@ import { gleifService } from '../../services/GLEIFService'
  *               category_code:
  *                 type: string
  *                 example: "10410"
+ *               mcc:
+ *                 type: string
+ *                 pattern: '^\d{4}$'
+ *                 example: "5812"
  *               merchant_type:
  *                 type: string
  *                 example: "Individual"
@@ -230,6 +234,9 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   merchant.monthly_turnover = req.body.monthly_turnover
   merchant.currency_code = req.body.currency_code
   merchant.category_code = req.body.category_code
+  merchant.mcc = typeof req.body.mcc === 'string' && req.body.mcc.length > 0
+    ? req.body.mcc
+    : null
   merchant.merchant_type = req.body.merchant_type
   merchant.registration_status = MerchantRegistrationStatus.DRAFT
   merchant.allow_block_status = MerchantAllowBlockStatus.PENDING

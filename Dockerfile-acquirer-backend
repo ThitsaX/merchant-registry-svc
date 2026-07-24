@@ -59,7 +59,6 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
-COPY --from=production-dependencies --chown=node:node /app/packages/acquirer-backend/node_modules ./packages/acquirer-backend/node_modules
 COPY --from=build --chown=node:node /app/packages/shared-lib/package.json ./packages/shared-lib/package.json
 COPY --from=build --chown=node:node /app/packages/shared-lib/dist ./packages/shared-lib/dist
 COPY --from=build --chown=node:node /app/packages/acquirer-backend/package.json ./packages/acquirer-backend/package.json

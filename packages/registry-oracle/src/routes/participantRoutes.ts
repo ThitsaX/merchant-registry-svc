@@ -9,7 +9,7 @@ import logger from '../services/logger'
 import { type EndpointAuthRequest } from '../types/express'
 import { audit } from '../utils/audit'
 import { prepareError } from '../utils/error'
-import { findIncrementAliasValue } from '../utils/utils'
+import { ALIAS_VALUE_MAX_LENGTH, findIncrementAliasValue, parseAliasValue } from '../utils/utils'
 
 const router = express.Router()
 
@@ -251,16 +251,19 @@ router.get('/parties/:type/:id', async (req: Request, res: Response) => {
  *                   example: "USD"
  *                 alias_value:
  *                   type: string
- *                   description: Alias value
+ *                   description: Alphanumeric alias containing letters, numbers, underscores, or hyphens
  *                   required: false
- *                   example: "000001"
+ *                   minLength: 1
+ *                   maxLength: 32
+ *                   pattern: '^[A-Za-z0-9_-]+$'
+ *                   example: "abc1234"
  *             example:
  *               - merchant_id: "10002"
  *                 currency: "USD"
- *                 alias_value: "000001"
+ *                 alias_value: "abc1234"
  *               - merchant_id: "10003"
  *                 currency: "EUR"
- *                 alias_value: "000002"
+ *                 alias_value: "shop_0002"
  *               - merchant_id: "10004"
  *                 currency: "JPY"
  *
@@ -375,9 +378,31 @@ router.post('/participants', authenticateAPIAccess, async (req: EndpointAuthRequ
         paddedAliasValue = await findIncrementAliasValue('0')
       }
     } else {
+      const parsedAliasValue = parseAliasValue(alias_value)
+      if (parsedAliasValue === null) {
+        const message = `Invalid Alias Value - use 1-${ALIAS_VALUE_MAX_LENGTH} letters, numbers, underscores, or hyphens`
+        logger.error('Invalid Alias Value')
+        await audit(
+          AuditActionType.ADD,
+          AuditTrasactionStatus.FAILURE,
+          'postParticipants',
+          'POST Participants: Invalid Alias Value',
+          'RegistryEntity',
+          {}, { alias_value }
+        )
+        results.push({
+          merchant_id: participant.merchant_id,
+          success: false,
+          message,
+          alias_value: null
+        })
+        continue
+      }
+      paddedAliasValue = parsedAliasValue
+
       // Check if the alias_value already exists
       const isAliasExists = await registryRepository.exist({
-        where: { alias_value },
+        where: { alias_value: paddedAliasValue },
 
         select: ['alias_value']
       })
@@ -390,32 +415,12 @@ router.post('/participants', authenticateAPIAccess, async (req: EndpointAuthRequ
           'postParticipants',
           'POST Participants: Alias Value already exists',
           'RegistryEntity',
-          {}, { alias_value }
+          {}, { alias_value: paddedAliasValue }
         )
         results.push({
           merchant_id: participant.merchant_id,
           success: false,
           message: 'Alias Value already exists',
-          alias_value: null
-        })
-        continue
-      }
-
-      // Check if the alias_value is a number
-      if (isNaN(alias_value)) {
-        logger.error('Invalid Alias Value')
-        await audit(
-          AuditActionType.ADD,
-          AuditTrasactionStatus.FAILURE,
-          'postParticipants',
-          'POST Participants: Invalid Alias Value - Alias Value should be a number',
-          'RegistryEntity',
-          {}, { alias_value }
-        )
-        results.push({
-          merchant_id: participant.merchant_id,
-          success: false,
-          message: 'Invalid Alias Value - Alias Value should be a number',
           alias_value: null
         })
         continue

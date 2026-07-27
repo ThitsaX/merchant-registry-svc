@@ -54,7 +54,7 @@ export function POSTParticipantsTests (app: Application): void {
       {
         merchant_id: '600002',
         currency: 'EUR',
-        alias_value: '600002'
+        alias_value: 'abc1234'
       },
       {
         merchant_id: '600003',
@@ -86,5 +86,98 @@ export function POSTParticipantsTests (app: Application): void {
 
     expect(res.body[2].merchant_id).toBe(participants[2].merchant_id)
     expect(res.body[2].alias_value.length).toBeGreaterThan(0) // alias_value will be generated
+  })
+
+  it('should accept supported alphanumeric alias formats', async () => {
+    const participants = [
+      {
+        merchant_id: '600011',
+        currency: 'USD',
+        alias_value: 'abc1234'
+      },
+      {
+        merchant_id: '600012',
+        currency: 'EUR',
+        alias_value: 'SHOP_12-test'
+      },
+      {
+        merchant_id: '600013',
+        currency: 'JPY',
+        alias_value: 600013
+      }
+    ]
+
+    const res = await request(app)
+      .post('/participants')
+      .set('x-api-key', dfspData.client_secret)
+      .send(participants)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([
+      expect.objectContaining({ success: true, alias_value: 'abc1234' }),
+      expect.objectContaining({ success: true, alias_value: 'SHOP_12-test' }),
+      expect.objectContaining({ success: true, alias_value: '600013' })
+    ])
+
+    const lookupRes = await request(app)
+      .get('/participants/MERCHANT_PAYINTOID/abc1234')
+
+    expect(lookupRes.status).toBe(200)
+    expect(lookupRes.body.partyList[0]).toEqual(expect.objectContaining({
+      alias_value: 'abc1234',
+      fspId: dfspData.fspId
+    }))
+  })
+
+  it.each([
+    ['an empty alias', ''],
+    ['an alias containing spaces', 'abc 1234'],
+    ['an alias containing path characters', 'abc/1234'],
+    ['an alias longer than 32 characters', 'a'.repeat(33)]
+  ])('should reject %s', async (_description, aliasValue) => {
+    const res = await request(app)
+      .post('/participants')
+      .set('x-api-key', dfspData.client_secret)
+      .send([{
+        merchant_id: '600021',
+        currency: 'USD',
+        alias_value: aliasValue
+      }])
+
+    expect(res.status).toBe(200)
+    expect(res.body[0]).toEqual(expect.objectContaining({
+      success: false,
+      message: 'Invalid Alias Value - use 1-32 letters, numbers, underscores, or hyphens',
+      alias_value: null
+    }))
+  })
+
+  it('should reject a duplicate alphanumeric alias', async () => {
+    const res = await request(app)
+      .post('/participants')
+      .set('x-api-key', dfspData.client_secret)
+      .send([
+        {
+          merchant_id: '600031',
+          currency: 'USD',
+          alias_value: 'abc1234'
+        },
+        {
+          merchant_id: '600032',
+          currency: 'USD',
+          alias_value: 'abc1234'
+        }
+      ])
+
+    expect(res.status).toBe(200)
+    expect(res.body[0]).toEqual(expect.objectContaining({
+      success: true,
+      alias_value: 'abc1234'
+    }))
+    expect(res.body[1]).toEqual(expect.objectContaining({
+      success: false,
+      message: 'Alias Value already exists',
+      alias_value: null
+    }))
   })
 }

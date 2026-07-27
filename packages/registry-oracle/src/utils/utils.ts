@@ -15,6 +15,8 @@ const API_KEY_LENGTH = readEnv('API_KEY_LENGTH', 64, true) as number
 const API_KEY_PREFIX = readEnv('API_KEY_PREFIX', 'MR')
 
 const ALIAS_CHECKOUT_MAX_DIGITS = readEnv('ALIAS_CHECKOUT_MAX_DIGITS', 10) as number
+export const ALIAS_VALUE_MAX_LENGTH = 32
+const ALIAS_VALUE_PATTERN = /^[A-Za-z0-9_-]+$/
 
 const saltRounds = 10
 export async function hashPassword (password: string): Promise<string> {
@@ -41,6 +43,21 @@ export function generateApiKey (): string {
   const apiKey = `${API_KEY_PREFIX}.${randomPayload}`
 
   return apiKey
+}
+
+export function parseAliasValue (value: unknown): string | null {
+  const aliasValue = typeof value === 'number' && Number.isFinite(value)
+    ? value.toString()
+    : value
+
+  if (typeof aliasValue !== 'string' ||
+      aliasValue.length === 0 ||
+      aliasValue.length > ALIAS_VALUE_MAX_LENGTH ||
+      !ALIAS_VALUE_PATTERN.test(aliasValue)) {
+    return null
+  }
+
+  return aliasValue
 }
 
 export async function findIncrementAliasValue (alias: string): Promise<string> {

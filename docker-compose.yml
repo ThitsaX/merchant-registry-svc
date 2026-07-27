@@ -33,7 +33,7 @@ services:
       - EMVCO_DEFAULT_MCC=${EMVCO_DEFAULT_MCC:-0000}
 
       - RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
-      - RECAPTCHA_ENABLED=true
+      - RECAPTCHA_ENABLED=${RECAPTCHA_ENABLED:-false}
 
       - EMAIL_PROVIDER=${EMAIL_PROVIDER:-none}
       - EMAIL_FROM=${EMAIL_FROM:-}
@@ -54,6 +54,7 @@ services:
       dockerfile: Dockerfile-acquirer-frontend
     environment:
       - VITE_API_URL=http://127.0.0.1:5555/api/v1
+      - VITE_RECAPTCHA_ENABLED=${VITE_RECAPTCHA_ENABLED:-false}
       - VITE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
 
     ports:

@@ -11,12 +11,13 @@ npm run dev
 
 ## Configuration
 
-| Environment Variables     | Default Values                 | Description                                                                                |
-| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
-| `VITE_PORT`               | `5172`                         | Port number for the Vite development server. The production container listens on `5173`.  |
-| `VITE_HOST`               | `0.0.0.0`                      | Host IP address for the Vite development server.                                           |
-| `VITE_API_URL`            | `http://localhost:5555/api/v1` | Backend API URL. The production container applies it at startup through `config.js`.       |
-| `VITE_RECAPTCHA_SITE_KEY` | `recaptcha-site-key`           | reCAPTCHA site key. The production container applies it at startup through `config.js`.    |
+| Environment Variables     | Default Values                 | Description                                                                                   |
+| ------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `VITE_PORT`               | `5172`                         | Port number for the Vite development server. The production container listens on `5173`.     |
+| `VITE_HOST`               | `0.0.0.0`                      | Host IP address for the Vite development server.                                              |
+| `VITE_API_URL`            | `http://localhost:5555/api/v1` | Backend API URL. The production container applies it at startup through `config.js`.          |
+| `VITE_RECAPTCHA_ENABLED`  | `false`                        | Set to `true` to render reCAPTCHA. The production container applies it through `config.js`.   |
+| `VITE_RECAPTCHA_SITE_KEY` | `recaptcha-site-key`           | reCAPTCHA site key used when reCAPTCHA is enabled.                                             |
 
 ## Development Notes
 

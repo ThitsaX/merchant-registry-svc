@@ -20,5 +20,7 @@ spec:
           env:
           - name: VITE_API_URL
             value: "{{ .Values.acquirerFrontend.env.apiURL }}"
+          - name: VITE_RECAPTCHA_ENABLED
+            value: "{{ .Values.acquirerFrontend.env.recaptchaEnabled }}"
           - name: VITE_RECAPTCHA_SITE_KEY
-            value: {{ .Values.acquirerFrontend.env.recaptchaFrontendSiteKey }}
+            value: "{{ .Values.acquirerFrontend.env.recaptchaFrontendSiteKey }}"

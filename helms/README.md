@@ -11,11 +11,14 @@
   - To enable SendGrid, set `emailProvider: "sendgrid"`, `emailFrom`, and
     `sendgridApiKey` in `./chart-acquirer-backend/values.yaml`.
 
-- Register for Google reCAPTCHA v2 and Add Ingress Domain
+- reCAPTCHA is disabled by default. To enable it, register for Google reCAPTCHA
+  v2 and add the ingress domain:
   - https://www.google.com/recaptcha/admin/create
   - Update the `./chart-acquirer-backend/values.yaml` file with the following values:
+    - `recaptchaEnabled: "true"`
     - `recaptchaBackendSiteKey`
   - Update the `./chart-acquirer-frontend/values.yaml` file with the following values:
+    - `recaptchaEnabled: "true"`
     - `recaptchaFrontendSiteKey`
 
 ### Deploying the Helm Charts

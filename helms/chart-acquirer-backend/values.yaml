@@ -32,4 +32,5 @@ acquirerBackend:
     s3Endpoint: minio-clusterip-service
     appURL: "http://www.acquirer-merchant.local" # for email verification backend link
     frontendSetPasswordRedirectURL: "http://www.acquirer-merchant.local/set-password" # reset password link after email verification
+    recaptchaEnabled: "false"
     recaptchaBackendSiteKey: "6LcEfT4pAAAAAF9a9PgebViC87aRPsd10JQDalNy"

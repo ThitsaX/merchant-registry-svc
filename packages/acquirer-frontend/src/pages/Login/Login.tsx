@@ -19,11 +19,11 @@ import { useForm } from 'react-hook-form'
 import { AiFillEye, AiFillEyeInvisible } from 'react-icons/ai'
 
 import mojaloopLogo from '@/assets/mojaloop-logo.png'
+import { RECAPTCHA_ENABLED, RECAPTCHA_SITE_KEY } from '@/lib/runtimeConfig'
 import { loginSchema, type LoginForm } from '@/lib/validations/login'
 import { useLogin } from '@/api/hooks/auth'
 import { CustomButton } from '@/components/ui'
 import { FormInput } from '@/components/form'
-import { RECAPTCHA_SITE_KEY } from '@/lib/runtimeConfig'
 
 const Login = () => {
   const [isPasswordShown, setIsPasswordShown] = useState(false)
@@ -149,11 +149,15 @@ const Login = () => {
               </Link>
             </HStack>
 
-            <ReCAPTCHA
-              ref={recaptchaRef}
-              sitekey={recaptchaSiteKey}
-              onChange={onRecaptchaChange}
-            />
+            {RECAPTCHA_ENABLED && (
+              <Box data-testid='recaptcha-widget'>
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={recaptchaSiteKey}
+                  onChange={onRecaptchaChange}
+                />
+              </Box>
+            )}
 
             <CustomButton type='submit' size='md' mt='8' isLoading={login.isPending}>
               Log In

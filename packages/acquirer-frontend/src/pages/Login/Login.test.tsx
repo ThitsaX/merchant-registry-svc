@@ -1,10 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, it, vi } from 'vitest'
+import { afterEach, describe, it, vi } from 'vitest'
 
 import TestWrapper from '@/__tests__/TestWrapper'
 import { Login } from '..'
 
 const mockLogin = vi.fn()
+const mockRuntimeConfig = vi.hoisted(() => ({
+  recaptchaEnabled: false,
+}))
+
 vi.mock('@/api/hooks/auth', () => ({
   useLogin: () => ({
     isLoading: false,
@@ -12,7 +16,41 @@ vi.mock('@/api/hooks/auth', () => ({
   }),
 }))
 
+vi.mock('@/lib/runtimeConfig', () => ({
+  API_URL: 'http://test.local',
+  get RECAPTCHA_ENABLED() {
+    return mockRuntimeConfig.recaptchaEnabled
+  },
+  RECAPTCHA_SITE_KEY: 'test-site-key',
+}))
+
 describe('Login', () => {
+  afterEach(() => {
+    mockRuntimeConfig.recaptchaEnabled = false
+  })
+
+  it('does not render reCAPTCHA when it is disabled', () => {
+    render(
+      <TestWrapper>
+        <Login />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByTestId('recaptcha-widget')).not.toBeInTheDocument()
+  })
+
+  it('renders reCAPTCHA when it is enabled', () => {
+    mockRuntimeConfig.recaptchaEnabled = true
+
+    render(
+      <TestWrapper>
+        <Login />
+      </TestWrapper>
+    )
+
+    expect(screen.getByTestId('recaptcha-widget')).toBeInTheDocument()
+  })
+
   it('should render the correct password toggle icon', () => {
     render(
       <TestWrapper>

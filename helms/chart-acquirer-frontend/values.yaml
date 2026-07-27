@@ -12,4 +12,5 @@ acquirerFrontend:
     port: 5173
   env:
     apiURL: "http://www.acquirer-merchant.local/api/v1"
+    recaptchaEnabled: "false"
     recaptchaFrontendSiteKey: "6LcEfT4pAAAAAAONtUPIQYSoYvNSbvKiexaZLo4R"

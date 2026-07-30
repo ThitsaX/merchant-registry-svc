@@ -197,6 +197,7 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
           subdivisionOptions={subdivisionOptions}
           districtOptions={districtOptions}
           headingText='Physical Business Address'
+          requireQrLocationFields
         />
 
         <GridShell justifyItems='center' pb={{ base: '8', sm: '12' }}>

@@ -36,6 +36,7 @@ interface AddressFormFieldsProps<T extends FieldValues & AddressFormValues> {
   subdivisionOptions?: Array<{ value: string; label: string }>
   districtOptions?: Array<{ value: string; label: string }>
   headingText?: string
+  requireQrLocationFields?: boolean
 }
 
 const AddressFormFields = <T extends FieldValues & AddressFormValues>({
@@ -46,6 +47,7 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
   subdivisionOptions,
   districtOptions,
   headingText = 'Physical Address',
+  requireQrLocationFields = false,
 }: AddressFormFieldsProps<T>) => {
   return (
     <>
@@ -131,6 +133,7 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
         />
 
         <FormSelect<T>
+          isRequired={requireQrLocationFields}
           name={'country' as Path<T>}
           register={register}
           errors={errors}
@@ -165,6 +168,7 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
         />
 
         <FormInput<T>
+          isRequired={requireQrLocationFields}
           name={'town_name' as Path<T>}
           register={register}
           errors={errors}

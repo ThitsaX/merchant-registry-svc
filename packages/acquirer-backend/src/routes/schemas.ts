@@ -39,7 +39,10 @@ export const MerchantSubmitDataSchema = z.object({
 
 export const MerchantLocationSubmitDataSchema = z.object({
   location_type: z.nativeEnum(MerchantLocationType).optional(),
-  country: z.string().optional(),
+  country: z
+    .string({ required_error: 'Country is required' })
+    .trim()
+    .min(1, { message: 'Country is required' }),
   web_url: z.string().optional(),
   address_type: z.string().optional(),
   department: z.string().optional(),
@@ -51,7 +54,10 @@ export const MerchantLocationSubmitDataSchema = z.object({
   room_number: z.string().optional(),
   post_box: z.string().optional(),
   postal_code: z.string().optional(),
-  town_name: z.string().optional(),
+  town_name: z
+    .string({ required_error: 'Township is required' })
+    .trim()
+    .min(1, { message: 'Township is required' }),
   district_name: z.string().optional(),
   country_subdivision: z.string().optional(),
   address_line: z.string().optional(),

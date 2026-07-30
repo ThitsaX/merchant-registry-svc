@@ -145,6 +145,10 @@ export function testPutMerchantLocations (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${nonExistingMerchantId}/locations/${validMerchantLocationId}`)
       .set('Authorization', `Bearer ${token}`)
+      .send({
+        country: 'United States of America',
+        town_name: 'Townsville'
+      })
     expect(res.statusCode).toEqual(404)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('Merchant not found')
@@ -163,6 +167,10 @@ export function testPutMerchantLocations (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${validMerchantId}/locations/${nonExistingLocationId}`)
       .set('Authorization', `Bearer ${token}`)
+      .send({
+        country: 'United States of America',
+        town_name: 'Townsville'
+      })
     expect(res.statusCode).toEqual(404)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('Merchant Location not found')
@@ -173,6 +181,10 @@ export function testPutMerchantLocations (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${unauthorizedMerchantId}/locations/${validMerchantLocationId}`)
       .set('Authorization', `Bearer ${token}`)
+      .send({
+        country: 'United States of America',
+        town_name: 'Townsville'
+      })
     expect(res.statusCode).toEqual(400)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('Accessing different DFSP\'s Merchant is not allowed.')
@@ -183,7 +195,9 @@ export function testPutMerchantLocations (app: Application): void {
       .put(`/api/v1/merchants/${validMerchantId}/locations/${validMerchantLocationId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({
-        location_type: 'non-existent-location-type'
+        location_type: 'non-existent-location-type',
+        country: 'United States of America',
+        town_name: 'Townsville'
       })
 
     expect(res.statusCode).toEqual(422)

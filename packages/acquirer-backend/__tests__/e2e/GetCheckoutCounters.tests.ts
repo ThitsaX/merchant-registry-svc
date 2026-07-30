@@ -48,6 +48,8 @@ export function testGetCheckoutCounters (app: Application): void {
       .send({
         location_type: 'Physical',
         web_url: 'http://www.example.com',
+        country: 'United States of America',
+        town_name: 'Townsville',
         checkout_description: 'Checkout Description 44'
       })
 

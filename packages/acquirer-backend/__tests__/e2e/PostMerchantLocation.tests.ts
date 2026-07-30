@@ -116,6 +116,10 @@ export function testPostMerchantLocations (app: Application): void {
     const res = await request(app)
       .post(`/api/v1/merchants/${nonExistingMerchantId}/locations`)
       .set('Authorization', `Bearer ${token}`)
+      .send({
+        country: 'United States of America',
+        town_name: 'Townsville'
+      })
     expect(res.statusCode).toEqual(404)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('Merchant not found')
@@ -126,6 +130,10 @@ export function testPostMerchantLocations (app: Application): void {
     const res = await request(app)
       .post(`/api/v1/merchants/${unauthorizedMerchantId}/locations`)
       .set('Authorization', `Bearer ${token}`)
+      .send({
+        country: 'United States of America',
+        town_name: 'Townsville'
+      })
     expect(res.statusCode).toEqual(400)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('Accessing different DFSP\'s Merchant is not allowed.')
@@ -139,7 +147,9 @@ export function testPostMerchantLocations (app: Application): void {
         location_type: 'nonexistent-location-type',
         web_url: 'http://www.example.com',
         address_type: 'Office',
-        department: 'Sales'
+        department: 'Sales',
+        country: 'United States of America',
+        town_name: 'Townsville'
       })
 
     expect(res.statusCode).toEqual(422)
@@ -147,6 +157,20 @@ export function testPostMerchantLocations (app: Application): void {
     expect(res.body.message).toEqual([
       "Invalid enum value. Expected 'Physical' | 'Virtual', received 'nonexistent-location-type'"
     ])
+  })
+
+  it('should require the location fields used by QR generation', async () => {
+    const res = await request(app)
+      .post(`/api/v1/merchants/${validMerchantId}/locations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: 'Physical'
+      })
+
+    expect(res.statusCode).toEqual(422)
+    expect(res.body.message).toEqual(
+      expect.arrayContaining(['Country is required', 'Township is required'])
+    )
   })
 
   it('should respond with 201 status and valid location data when everything is valid', async () => {

@@ -5,6 +5,7 @@ import logger from '../services/logger'
 import {
   CurrencyCodes, CurrencyDescriptions,
   MerchantCategoryCodes,
+  MerchantAllowBlockStatus, MerchantRegistrationStatus,
   PortalUserStatus, PortalUserType
 } from 'shared-lib'
 import { MerchantCategoryEntity } from '../entity/MerchantCategoryEntity'
@@ -24,6 +25,7 @@ import { DistrictEntity } from '../entity/DistrictEntity'
 import { type DataSource } from 'typeorm'
 import { readEnv } from '../setup/readEnv'
 import { ApplicationStateEntity } from '../entity/ApplicationStateEntity'
+import { MerchantEntity } from '../entity/MerchantEntity'
 
 const SEED_DEFAULT_DFSP_USERS = readEnv('SEED_DEFAULT_DFSP_USERS', 'false') === 'true'
 const SEED_DEFAULT_HUB_USERS = readEnv('SEED_DEFAULT_HUB_USERS', 'false') === 'true'
@@ -43,6 +45,7 @@ export const initializeDatabase = async (): Promise<void> => {
 
       await seedDefaultPermissions(AppDataSource)
       await seedDefaultRoles(AppDataSource)
+      await backfillApprovedMerchantAllowStatus(AppDataSource)
 
       if (SEED_DEFAULT_DFSP_USERS) {
         await seedDefaultDFSPUsers(AppDataSource)
@@ -75,6 +78,29 @@ export const initializeDatabase = async (): Promise<void> => {
       /* istanbul ignore next */
       throw error
     })
+}
+
+export async function backfillApprovedMerchantAllowStatus (
+  appDataSource: DataSource
+): Promise<void> {
+  // Approvals created before this transition remained Pending indefinitely.
+  const result = await appDataSource.manager.update(
+    MerchantEntity,
+    {
+      registration_status: MerchantRegistrationStatus.APPROVED,
+      allow_block_status: MerchantAllowBlockStatus.PENDING
+    },
+    {
+      allow_block_status: MerchantAllowBlockStatus.ALLOWED
+    }
+  )
+
+  if ((result.affected ?? 0) > 0) {
+    logger.info(
+      'Marked %d existing approved merchants as allowed',
+      result.affected
+    )
+  }
 }
 
 export async function seedCategoryCode (appDataSource: DataSource, merchantCategoryData: Record<string, string>): Promise<void> {

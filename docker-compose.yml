@@ -5,17 +5,18 @@ services:
       dockerfile: Dockerfile-acquirer-backend
     restart: unless-stopped
     ports:
-      - "5555:5555"
+      - "${BACKEND_HOST_PORT:-5555}:5555"
     environment:
-      - APP_URL=http://127.0.0.1:5555
-      - FRONTEND_SET_PASSWORD_URL=http://localhost:5173/set-password
+      - APP_URL=${APP_URL:-http://127.0.0.1:5555}
+      - FRONTEND_SET_PASSWORD_URL=${FRONTEND_SET_PASSWORD_URL:-http://localhost:5173/set-password}
       - HOST=0.0.0.0
       - PORT=5555
+      - JWT_SECRET=${JWT_SECRET:-local-demo-jwt-secret-change-me}
 
       - DB_HOST=merchant-db
       - DB_PORT=3306
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
       - DB_DATABASE=acquirer_db
 
       - S3_ENDPOINT=minio
@@ -23,18 +24,18 @@ services:
       - S3_PUBLIC_ENDPOINT=127.0.0.1
       - S3_PUBLIC_PORT=${MINIO_HOST_PORT:-9000}
       - S3_PUBLIC_USE_SSL=false
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - S3_MERCHANT_BUCKET_NAME=merchant-documents
 
       - REGISTRY_ORACLE_URL=http://registry-oracle:8888
-      - REGISTRY_INTERNAL_API_KEY=change-me
+      - REGISTRY_INTERNAL_API_KEY=${REGISTRY_INTERNAL_API_KEY:-change-me}
       - REGISTRY_HTTP_TIMEOUT_MS=5000
       - REGISTRY_HTTP_RETRIES=2
 
       - EMVCO_MERCHANT_ACCOUNT_GUI=${EMVCO_MERCHANT_ACCOUNT_GUI:-org.mojaloop}
 
-      - RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:-}
       - RECAPTCHA_ENABLED=${RECAPTCHA_ENABLED:-false}
 
       - EMAIL_PROVIDER=${EMAIL_PROVIDER:-none}
@@ -45,9 +46,18 @@ services:
       - GLEIF_API_URL=https://api.gleif.org/api/v1
       - GLEIF_API_KEY=
     depends_on:
-      - merchant-db
-      - minio
-      - registry-oracle
+      merchant-db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      registry-oracle:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:5555/api/v1/health-check"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   acquirer-frontend:
     restart: unless-stopped
@@ -55,12 +65,21 @@ services:
       context: .
       dockerfile: Dockerfile-acquirer-frontend
     environment:
-      - VITE_API_URL=http://127.0.0.1:5555/api/v1
+      - VITE_API_URL=${VITE_API_URL:-http://127.0.0.1:5555/api/v1}
       - VITE_RECAPTCHA_ENABLED=${VITE_RECAPTCHA_ENABLED:-false}
-      - VITE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+      - VITE_RECAPTCHA_SITE_KEY=${VITE_RECAPTCHA_SITE_KEY:-}
 
     ports:
-      - "5173:5173"
+      - "${FRONTEND_HOST_PORT:-5173}:5173"
+    depends_on:
+      acquirer-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   registry-oracle:
     build:
@@ -68,7 +87,7 @@ services:
       dockerfile: Dockerfile-registry-oracle
     restart: unless-stopped
     ports:
-      - 8888:8888
+      - "${ORACLE_HOST_PORT:-8888}:8888"
     environment:
       - HOST=0.0.0.0
       - PORT=8888
@@ -76,37 +95,57 @@ services:
       - DB_HOST=merchant-db
       - DB_PORT=3306
       - DB_USERNAME=root
-      - DB_PASSWORD=password
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
       - DB_DATABASE=registry_db
 
-      - REGISTRY_INTERNAL_API_KEY=change-me
+      - REGISTRY_INTERNAL_API_KEY=${REGISTRY_INTERNAL_API_KEY:-change-me}
 
     depends_on:
-      - merchant-db
+      merchant-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8888/health-check"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   merchant-db:
-    container_name: mysql-db
-    image: mysql:8.0.33
+    image: ${MYSQL_IMAGE:-mysql:8.0.33}
     command: --default-authentication-plugin=mysql_native_password
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-password}
     ports:
-      - 3306:3306
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
-      - ./mysql-init-scripts:/docker-entrypoint-initdb.d
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping --host=127.0.0.1 --user=root --password=$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   minio:
-    image: minio/minio:RELEASE.2023-07-21T21-12-44Z
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2023-07-21T21-12-44Z}
     restart: unless-stopped
     volumes:
       - data:/data
     ports:
-      - "9000:9000"
+      - "${MINIO_HOST_PORT:-9000}:9000"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   data:
+  mysql-data:

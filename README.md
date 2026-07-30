@@ -33,24 +33,27 @@ See the README.md file on each services for more Environment Variable Configurat
 * [Instruction README](./helms/README.md)
 
 ## Deploying on Docker
+
+For end-to-end local setup, Hub and DFSP user provisioning, and merchant
+registration, see the [onboarding guide](./docs/onboarding-guide.md).
+
 * Requirements
-    - `docker` and `docker-compose`
-    - Copy each service's safe template before local development:
-      `cp packages/acquirer-backend/.env.example packages/acquirer-backend/.env`,
-      `cp packages/acquirer-frontend/.env.example packages/acquirer-frontend/.env`, and
-      `cp packages/registry-oracle/.env.example packages/registry-oracle/.env`.
+    - Docker Engine with Docker Compose v2 (`docker compose`)
+    - Create the Compose environment from its safe template:
+      `cp .env.example .env`.
     - Email is optional. The default `EMAIL_PROVIDER=none` requires no third-party
       account. To enable SendGrid notifications and emailed forgot-password links,
       set `EMAIL_PROVIDER=sendgrid`, `EMAIL_FROM`, and `SENDGRID_API_KEY`.
     - reCAPTCHA is disabled by default. To enable reCAPTCHA verification:
         - Register at [Google reCAPTCHA](https://www.google.com/recaptcha/admin/create) and create a reCAPTCHA v2 Checkbox.
-        - Set `VITE_RECAPTCHA_ENABLED=true` and update `VITE_RECAPTCHA_SITE_KEY` in `./packages/acquirer-frontend/.env`.
-        - Set `RECAPTCHA_ENABLED=true` and update `RECAPTCHA_SECRET_KEY` in `./packages/acquirer-backend/.env`.
+        - Set `VITE_RECAPTCHA_ENABLED=true` and update `VITE_RECAPTCHA_SITE_KEY` in `.env`.
+        - Set `RECAPTCHA_ENABLED=true` and update `RECAPTCHA_SECRET_KEY` in `.env`.
     - Make sure to update IP/Domain name in `FRONTEND_SET_PASSWORD_URL`, `APP_URL` and `VITE_API_URL` if deploying other than `localhost` (`127.0.0.1`)
 
-* Run 
+* Run
     ```bash 
-    docker-compose up --build
+    docker compose up --build --detach
+    docker compose ps
     ```
     The API images run compiled JavaScript with production-only dependencies. The
     frontend is served by Nginx and reads `VITE_API_URL`,

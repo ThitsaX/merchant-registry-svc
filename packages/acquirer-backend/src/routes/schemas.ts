@@ -3,7 +3,9 @@ import {
   MerchantType,
   NumberOfEmployees,
   isMerchantCategoryCode,
-  isMerchantClassificationCode
+  isMerchantClassificationCode,
+  MERCHANT_ALIAS_MAX_LENGTH,
+  MERCHANT_ALIAS_PATTERN
 } from 'shared-lib'
 import * as z from 'zod'
 
@@ -30,6 +32,18 @@ export const MerchantSubmitDataSchema = z.object({
     .trim()
     .regex(/^\d{4}$/, { message: 'MCC must contain exactly 4 digits' })
     .refine(isMerchantClassificationCode, { message: 'MCC is not supported' })
+    .or(z.literal(''))
+    .optional()
+    .nullable(),
+  payinto_alias: z
+    .string()
+    .trim()
+    .max(MERCHANT_ALIAS_MAX_LENGTH, {
+      message: `Alias cannot exceed ${MERCHANT_ALIAS_MAX_LENGTH} characters`
+    })
+    .regex(MERCHANT_ALIAS_PATTERN, {
+      message: 'Alias can only contain letters, numbers, underscores, and hyphens'
+    })
     .or(z.literal(''))
     .optional()
     .nullable(),

@@ -6,8 +6,23 @@ import type { MerchantDetails } from '@/types/merchantDetails'
 import { createBusinessInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
 import BusinessInfoForm from './BusinessInfoForm'
+import { businessInfoSchema } from '@/lib/validations/registry'
 
-const draft = createBusinessInfoMerchant()
+const draft = createBusinessInfoMerchant({
+  checkout_counters: [
+    {
+      id: 1,
+      description: '',
+      notification_number: '',
+      alias_type: 'MERCHANT_PAYINTOID',
+      alias_value: 'LBR-MER-00012345',
+      merchant_registry_id: 1,
+      qr_code_link: '',
+      created_at: '2023-10-25T15:39:03.173Z',
+      updated_at: '2023-10-25T17:42:24.000Z',
+    },
+  ],
+})
 const fn = vi.fn()
 const mockMerchantId = vi.fn()
 
@@ -125,6 +140,7 @@ describe('BusinessInfoForm', () => {
 
     const dbaNameInput: HTMLInputElement = screen.getByLabelText(/Doing Business As Name/)
     const registeredNameInput: HTMLInputElement = screen.getByLabelText(/Registered Name/)
+    const customAliasInput: HTMLInputElement = screen.getByLabelText(/Custom Merchant Alias/)
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
     const monthlyTurnOverInput: HTMLInputElement =
@@ -142,6 +158,7 @@ describe('BusinessInfoForm', () => {
 
     expect(dbaNameInput.value).toEqual('marco')
     expect(registeredNameInput.value).toEqual('')
+    expect(customAliasInput.value).toEqual('LBR-MER-00012345')
     expect(numberOfEmployeeInput.value).toEqual('6 - 10')
     expect(monthlyTurnOverInput.value).toEqual('')
     expect(merchantCategoryInput.value).toEqual('10120')
@@ -152,6 +169,31 @@ describe('BusinessInfoForm', () => {
     expect(radioYesInput.checked).toEqual(true)
     expect(radioNoInput.checked).toEqual(false)
     expect(licenseNumberInput.value).toEqual('1234')
+  })
+
+  it('accepts supported aliases and rejects malformed aliases', () => {
+    const values = {
+      dba_trading_name: 'Merchant',
+      employees_num: '6 - 10',
+      category_code: '10120',
+      mcc: '5812',
+      merchant_type: 'Small Shop',
+      currency_code: 'ALL',
+      license_document: null,
+    }
+
+    expect(
+      businessInfoSchema.safeParse({
+        ...values,
+        payinto_alias: 'LBR-MER-00012345',
+      }).success
+    ).toBe(true)
+    expect(
+      businessInfoSchema.safeParse({
+        ...values,
+        payinto_alias: 'invalid alias',
+      }).success
+    ).toBe(false)
   })
 
   it('should search and select a business activity', async () => {

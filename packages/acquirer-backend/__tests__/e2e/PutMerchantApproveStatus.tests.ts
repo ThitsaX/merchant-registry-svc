@@ -5,6 +5,8 @@ import { DefaultDFSPUsers } from '../../src/database/defaultUsers'
 import { AppDataSource } from '../../src/database/dataSource'
 import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { NumberOfEmployees } from 'shared-lib'
+import { registerMerchantsWithRegistry } from '../../src/services/registryOracleClient'
+import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
 
 export function testPutMerchantStatusApprove (app: Application): void {
   let makerToken = ''
@@ -76,6 +78,7 @@ export function testPutMerchantStatusApprove (app: Application): void {
       .field('category_code', '10410')
       .field('mcc', '5812')
       .field('merchant_type', 'Individual')
+      .field('payinto_alias', 'APPROVAL-ALIAS-55')
       .field('license_number', '123456789')
     merchantId = res4.body.data.id
 
@@ -101,6 +104,12 @@ export function testPutMerchantStatusApprove (app: Application): void {
 
   afterAll(async () => {
     // Clean up
+    const checkoutCounter = await AppDataSource.manager.findOne(CheckoutCounterEntity, {
+      where: { merchant: { id: merchantId } }
+    })
+    if (checkoutCounter !== null) {
+      await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)
+    }
     await AppDataSource.manager.delete(MerchantEntity, merchantId)
     await AppDataSource.manager.delete(MerchantEntity, nonReadyMerchantId)
   })
@@ -186,6 +195,9 @@ export function testPutMerchantStatusApprove (app: Application): void {
   })
 
   it('should respond 200 with "Waiting For Alias Generation" Status Updated for multiple merchants message when everything is valid.', async () => {
+    const registerMerchants = jest.mocked(registerMerchantsWithRegistry)
+    registerMerchants.mockClear()
+
     const res = await request(app)
       .put('/api/v1/merchants/bulk-approve')
       .set('Authorization', `Bearer ${checkerToken}`)
@@ -195,5 +207,11 @@ export function testPutMerchantStatusApprove (app: Application): void {
     expect(res.statusCode).toEqual(200)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('"Waiting For Alias Generation" Status Updated for multiple merchants')
+    expect(registerMerchants).toHaveBeenCalledWith([
+      expect.objectContaining({
+        merchant_id: merchantId,
+        alias_value: 'APPROVAL-ALIAS-55'
+      })
+    ])
   })
 }

@@ -18,6 +18,7 @@ import { uploadMerchantDocument } from '../../services/S3Client'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
+import { saveRequestedMerchantAlias } from '../../services/merchantAlias'
 
 /**
  * @openapi
@@ -62,6 +63,12 @@ import { gleifService } from '../../services/GLEIFService'
  *               merchant_type:
  *                 type: string
  *                 example: "Individual"
+ *               payinto_alias:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 32
+ *                 pattern: '^[A-Za-z0-9_-]+$'
+ *                 example: "LBR-MER-00012345"
  *               license_number:
  *                 type: string
  *               license_document:
@@ -123,7 +130,13 @@ export async function postMerchantDraft (req: AuthRequest, res: Response) {
   const merchant = createMerchantEntity(merchantRepository, req.body, portalUser)
 
   // Save merchant and business license
-  const saveError = await saveMerchantWithLicense(merchant, merchantRepository, req.file, req.body.license_number)
+  const saveError = await saveMerchantWithLicense(
+    merchant,
+    merchantRepository,
+    req.file,
+    req.body.license_number,
+    req.body.payinto_alias
+  )
   if (saveError !== null && saveError !== undefined && saveError !== '') {
     return res.status(500).send({ message: saveError })
   }
@@ -275,10 +288,12 @@ async function saveMerchantWithLicense (
   merchant: MerchantEntity,
   merchantRepository: any,
   file: any,
-  licenseNumber: string
+  licenseNumber: string,
+  requestedAlias: unknown
 ): Promise<string | null> {
   try {
     await merchantRepository.save(merchant)
+    await saveRequestedMerchantAlias(merchant, requestedAlias)
 
     const licenseRepository = AppDataSource.getRepository(BusinessLicenseEntity)
     const license = new BusinessLicenseEntity()
@@ -338,6 +353,10 @@ function sanitizeMerchantResponse (merchant: MerchantEntity) {
   return {
     ...merchant,
     created_by: undefined,
+    checkout_counters: merchant.checkout_counters?.map(checkoutCounter => {
+      const { merchant, ...checkoutCounterData } = checkoutCounter
+      return checkoutCounterData
+    }),
     business_licenses: merchant.business_licenses?.map(license => {
       const { merchant, ...licenseData } = license
       return licenseData

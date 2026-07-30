@@ -11,6 +11,7 @@ import path from 'path'
 import { AppDataSource } from '../../src/database/dataSource'
 import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { MerchantRegistrationStatus } from 'shared-lib'
+import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
 
 export function testPostMerchantDraft (app: Application): void {
   let token = ''
@@ -73,6 +74,18 @@ export function testPostMerchantDraft (app: Application): void {
     )
   })
 
+  it('should reject an invalid custom merchant alias', async () => {
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payinto_alias', 'invalid alias')
+
+    expect(res.statusCode).toEqual(422)
+    expect(res.body.message).toContain(
+      'payinto_alias: Alias can only contain letters, numbers, underscores, and hyphens'
+    )
+  })
+
   it('should respond with 201 and merchant data when everything is valid with Draft status', async () => {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
@@ -96,8 +109,16 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.data).toHaveProperty('registration_status')
     expect(res.body.data.registration_status).toEqual(MerchantRegistrationStatus.DRAFT)
     expect(res.body.data.mcc).toEqual('5812')
+    expect(res.body.data.checkout_counters[0].alias_value).toEqual('merchant1')
+
+    const checkoutCounter = await AppDataSource.manager.findOneByOrFail(
+      CheckoutCounterEntity,
+      { id: res.body.data.checkout_counters[0].id }
+    )
+    expect(checkoutCounter.alias_value).toEqual('merchant1')
 
     // Clean up
+    await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)
     await AppDataSource.manager.delete(MerchantEntity, res.body.data.id)
   })
 
@@ -130,9 +151,14 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.data.business_licenses[0]).toHaveProperty('license_number')
     expect(res.body.data.business_licenses[0]).toHaveProperty('license_document_link')
     expect(res.body.data.business_licenses[0].license_document_link).toContain('dummy')
+    expect(res.body.data.checkout_counters[0].alias_value).toEqual('merchant1')
 
     // Clean up
     await removeMerchantDocument(res.body.data.business_licenses[0].license_document_link)
+    await AppDataSource.manager.delete(
+      CheckoutCounterEntity,
+      res.body.data.checkout_counters[0].id
+    )
     await AppDataSource.manager.delete(MerchantEntity, res.body.data.id)
   })
 }

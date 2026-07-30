@@ -23,8 +23,8 @@ export class CheckoutCounterEntity {
   @Column({ nullable: false, length: 255, default: 'MERCHANT_PAYINTOID' })
     alias_type!: string
 
-  @Column({ nullable: true, length: 255 })
-    alias_value!: string
+  @Column({ type: 'varchar', nullable: true, length: 255 })
+    alias_value!: string | null
 
   @Column({ nullable: true })
     merchant_registry_id!: number

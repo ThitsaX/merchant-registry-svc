@@ -12,7 +12,7 @@ interface CheckoutCounter {
   description: string
   notification_number: string
   alias_type: string
-  alias_value: string
+  alias_value: string | null
   merchant_registry_id: number
   qr_code_link: string
   created_at: string

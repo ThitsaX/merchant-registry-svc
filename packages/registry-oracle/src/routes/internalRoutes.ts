@@ -7,10 +7,13 @@ import {
 } from '../services/idempotency'
 import {
   type MerchantData,
+  InvalidMerchantAliasError,
+  MerchantAliasConflictError,
   registerMerchants
 } from '../services/registerMerchant'
 import { registerEndpointDFSP } from '../services/registerEndpointDFSP'
 import logger from '../services/logger'
+import { parseMerchantAlias } from 'shared-lib'
 
 const router = express.Router()
 
@@ -38,12 +41,27 @@ function isMerchantData (value: unknown): value is MerchantData {
     typeof merchant.currency_code === 'object' &&
     typeof merchant.currency_code.iso_code === 'string' &&
     merchant.currency_code.iso_code.length > 0 &&
-    (merchant.lei === undefined || typeof merchant.lei === 'string')
+    (merchant.lei === undefined || typeof merchant.lei === 'string') &&
+    (
+      merchant.alias_value === undefined ||
+      (
+        typeof merchant.alias_value === 'string' &&
+        parseMerchantAlias(merchant.alias_value.trim()) !== null
+      )
+    )
 }
 
 function handleError (error: unknown, res: Response): void {
   if (error instanceof IdempotencyConflictError) {
     res.status(409).send({ message: error.message })
+    return
+  }
+  if (error instanceof MerchantAliasConflictError) {
+    res.status(409).send({ message: error.message })
+    return
+  }
+  if (error instanceof InvalidMerchantAliasError) {
+    res.status(400).send({ message: error.message })
     return
   }
   logger.error('Internal API request failed: %o', error)

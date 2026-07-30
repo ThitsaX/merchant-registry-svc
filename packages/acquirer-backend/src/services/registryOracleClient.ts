@@ -36,6 +36,7 @@ export interface RegistryMerchantData {
     description: string
   }
   lei?: string
+  alias_value?: string
 }
 
 interface RegistryAliasData {
@@ -53,6 +54,8 @@ interface DFSPRegistryData {
   dfsp_name: string
   client_secret: string
 }
+
+export class RegistryAliasConflictError extends Error {}
 
 function isRetryable (error: unknown): boolean {
   if (!isAxiosError(error)) return false
@@ -105,11 +108,23 @@ export async function registerMerchantsWithRegistry (
   merchants: RegistryMerchantData[],
   idempotencyKey: string = uuidv4()
 ): Promise<void> {
-  const response = await requestRegistry<RegistryResponse<RegistryAliasData[]>>({
-    method: 'POST',
-    url: '/internal/v1/merchants/registrations',
-    data: { merchants }
-  }, idempotencyKey)
+  let response: RegistryResponse<RegistryAliasData[]>
+  try {
+    response = await requestRegistry<RegistryResponse<RegistryAliasData[]>>({
+      method: 'POST',
+      url: '/internal/v1/merchants/registrations',
+      data: { merchants }
+    }, idempotencyKey)
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 409) {
+      const data = error.response.data as { message?: unknown } | undefined
+      const message = typeof data?.message === 'string'
+        ? data.message
+        : 'The requested merchant alias is already registered'
+      throw new RegistryAliasConflictError(message)
+    }
+    throw error
+  }
   await processBulkGenerateAlias(response.data)
 }
 

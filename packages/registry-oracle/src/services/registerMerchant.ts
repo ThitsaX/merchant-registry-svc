@@ -2,6 +2,7 @@ import { AppDataSource } from '../database/dataSource'
 import { RegistryEntity } from '../entity/RegistryEntity'
 import logger from './logger'
 import { IsNull } from 'typeorm'
+import { parseMerchantAlias } from 'shared-lib'
 
 export interface CurrencyCode {
   iso_code: string
@@ -15,6 +16,47 @@ export interface MerchantData {
   checkout_counter_id?: number
   currency_code: CurrencyCode
   lei?: string
+  alias_value?: string
+}
+
+export class InvalidMerchantAliasError extends Error {}
+export class MerchantAliasConflictError extends Error {}
+
+function resolveAlias (merchant: MerchantData): {
+  aliasValue: string
+  aliasSource: string
+  lei: string | null
+} {
+  const requestedAlias = merchant.alias_value?.trim()
+  if (requestedAlias !== undefined && requestedAlias.length > 0) {
+    const parsedAlias = parseMerchantAlias(requestedAlias)
+    const lei = merchant.lei?.trim()
+    if (parsedAlias === null) {
+      throw new InvalidMerchantAliasError(
+        'Alias must contain 1-32 letters, numbers, underscores, or hyphens'
+      )
+    }
+    return {
+      aliasValue: parsedAlias,
+      aliasSource: 'custom alias',
+      lei: lei !== undefined && lei.length > 0 ? lei : null
+    }
+  }
+
+  const lei = merchant.lei?.trim()
+  if (lei !== undefined && lei.length > 0) {
+    return {
+      aliasValue: lei,
+      aliasSource: 'LEI',
+      lei
+    }
+  }
+
+  return {
+    aliasValue: (10000000 + merchant.merchant_id).toString(),
+    aliasSource: '8-digit merchant_id',
+    lei: null
+  }
 }
 
 export async function registerMerchants (merchants: MerchantData[]): Promise<RegistryEntity[]> {
@@ -27,13 +69,14 @@ export async function registerMerchants (merchants: MerchantData[]): Promise<Reg
     const registryEntities: RegistryEntity[] = []
 
     for (const merchant of merchants) {
-      const hasValidLEI = merchant.lei !== null &&
-        merchant.lei !== undefined &&
-        merchant.lei.trim() !== ''
-      const aliasValue = hasValidLEI ? merchant.lei : (10000000 + merchant.merchant_id).toString()
-      const aliasType = hasValidLEI ? 'LEI' : '8-digit merchant_id'
+      const { aliasValue, aliasSource, lei } = resolveAlias(merchant)
       const checkoutCounterId = merchant.checkout_counter_id ?? 0
-      logger.debug('Using %s as alias_value for merchant %d: %s', aliasType, merchant.merchant_id, aliasValue)
+      logger.debug(
+        'Using %s as alias_value for merchant %d: %s',
+        aliasSource,
+        merchant.merchant_id,
+        aliasValue
+      )
 
       let registryRecord = await transactionalEntityManager.findOne(RegistryEntity, {
         where: [
@@ -51,6 +94,14 @@ export async function registerMerchants (merchants: MerchantData[]): Promise<Reg
       })
       if (registryRecord === null) registryRecord = new RegistryEntity()
 
+      const aliasOwner = await transactionalEntityManager.findOne(RegistryEntity, {
+        where: { alias_value: aliasValue },
+        select: ['id', 'merchant_id', 'checkout_counter_id']
+      })
+      if (aliasOwner !== null && aliasOwner.id !== registryRecord.id) {
+        throw new MerchantAliasConflictError(`Alias "${aliasValue}" is already registered`)
+      }
+
       Object.assign(registryRecord, {
         merchant_id: merchant.merchant_id,
         fspId: merchant.fspId,
@@ -58,7 +109,7 @@ export async function registerMerchants (merchants: MerchantData[]): Promise<Reg
         checkout_counter_id: checkoutCounterId,
         alias_value: aliasValue,
         currency: merchant.currency_code.iso_code,
-        lei: hasValidLEI ? merchant.lei : null
+        lei
       })
       registryEntities.push(await transactionalEntityManager.save(RegistryEntity, registryRecord))
     }

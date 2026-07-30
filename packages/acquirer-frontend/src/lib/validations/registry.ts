@@ -3,8 +3,10 @@ import {
   BusinessOwnerIDType,
   CurrencyCodes,
   isMerchantCategoryCode,
-  isMerchantClassificationCode,
-  MerchantLocationType,
+    isMerchantClassificationCode,
+    MERCHANT_ALIAS_MAX_LENGTH,
+    MERCHANT_ALIAS_PATTERN,
+    MerchantLocationType,
   MerchantType,
   NumberOfEmployees,
 } from 'shared-lib'
@@ -19,7 +21,17 @@ export const businessInfoSchema = z
     dba_trading_name: z.string().trim().min(1, { message: 'Business name is required' }),
     registered_name: z.string().optional(),
     lei: z.string().max(20, { message: 'LEI cannot exceed 20 characters' }).optional(),
-    // payinto_alias: z.string().min(1, { message: 'Payinto account is required' }),
+    payinto_alias: z
+      .string()
+      .trim()
+      .max(MERCHANT_ALIAS_MAX_LENGTH, {
+        message: `Alias cannot exceed ${MERCHANT_ALIAS_MAX_LENGTH} characters`,
+      })
+      .regex(MERCHANT_ALIAS_PATTERN, {
+        message: 'Alias can only contain letters, numbers, underscores, and hyphens',
+      })
+      .or(z.literal(''))
+      .optional(),
     employees_num: z.nativeEnum(NumberOfEmployees, {
       errorMap: () => ({ message: 'Please select an option' }),
     }),

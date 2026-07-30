@@ -10,6 +10,7 @@ import { removeMerchantDocument } from '../../src/services/S3Client'
 import { PortalPermissionEntity } from '../../src/entity/PortalPermissionEntity'
 import { PermissionsEnum } from '../../src/types/permissions'
 import { PortalRoleEntity } from '../../src/entity/PortalRoleEntity'
+import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
 
 export function testPutMerchantDraft (app: Application): void {
   let token = ''
@@ -66,6 +67,12 @@ export function testPutMerchantDraft (app: Application): void {
 
   afterAll(async () => {
     // Clean up
+    const checkoutCounter = await AppDataSource.manager.findOne(CheckoutCounterEntity, {
+      where: { merchant: { id: merchantId } }
+    })
+    if (checkoutCounter !== null) {
+      await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)
+    }
     await AppDataSource.manager.delete(MerchantEntity, merchantId)
   })
 
@@ -171,6 +178,7 @@ export function testPutMerchantDraft (app: Application): void {
       .field('category_code', '01120')
       .field('mcc', '5814')
       .field('merchant_type', MerchantType.SMALL_SHOP)
+      .field('payinto_alias', 'LBR-MER-UPDATED')
       .field('license_number', '987654321')
 
     expect(res.statusCode).toEqual(200)
@@ -193,6 +201,7 @@ export function testPutMerchantDraft (app: Application): void {
     expect(res.body.data).toHaveProperty('category_code')
     expect(res.body.data.category_code).toEqual('01120')
     expect(res.body.data.mcc).toEqual('5814')
+    expect(res.body.data.checkout_counters[0].alias_value).toEqual('LBR-MER-UPDATED')
     expect(res.body.data).toHaveProperty('merchant_type')
     expect(res.body.data.merchant_type).toEqual(MerchantType.SMALL_SHOP)
     expect(res.body.data).toHaveProperty('business_licenses')

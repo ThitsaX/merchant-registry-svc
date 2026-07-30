@@ -1,5 +1,9 @@
 import { RegistryEntity } from '../../src/entity/RegistryEntity'
-import { type MerchantData, registerMerchants } from '../../src/services/registerMerchant'
+import {
+  MerchantAliasConflictError,
+  type MerchantData,
+  registerMerchants
+} from '../../src/services/registerMerchant'
 import { AppDataSource } from '../../src/database/dataSource'
 
 export function testRegisterMerchants (): void {
@@ -80,6 +84,50 @@ export function testRegisterMerchants (): void {
     // Second merchant should use LEI as alias_value
     expect(result[1].alias_value).toBe('LEI123456789012345XY')
     expect(result[1].lei).toBe('LEI123456789012345XY')
+  })
+
+  test('A requested custom alias takes precedence over LEI and generated aliases', async () => {
+    const [result] = await registerMerchants([{
+      merchant_id: 66010,
+      fspId: 'fsp10',
+      dfsp_name: 'DFSP #10',
+      checkout_counter_id: 66110,
+      currency_code: {
+        iso_code: 'USD',
+        description: 'US Dollar'
+      },
+      lei: '549300CUSTOMTEST123AB',
+      alias_value: 'LBR-MER-00012345'
+    }])
+
+    expect(result.alias_value).toBe('LBR-MER-00012345')
+    expect(result.lei).toBe('549300CUSTOMTEST123AB')
+  })
+
+  test('Rejects a custom alias already owned by another merchant', async () => {
+    await registerMerchants([{
+      merchant_id: 66011,
+      fspId: 'fsp11',
+      dfsp_name: 'DFSP #11',
+      checkout_counter_id: 66111,
+      currency_code: {
+        iso_code: 'USD',
+        description: 'US Dollar'
+      },
+      alias_value: 'SHARED-ALIAS'
+    }])
+
+    await expect(registerMerchants([{
+      merchant_id: 66012,
+      fspId: 'fsp12',
+      dfsp_name: 'DFSP #12',
+      checkout_counter_id: 66112,
+      currency_code: {
+        iso_code: 'USD',
+        description: 'US Dollar'
+      },
+      alias_value: 'SHARED-ALIAS'
+    }])).rejects.toThrow(MerchantAliasConflictError)
   })
 
   test('Registering mixed merchants - some with LEI, some without', async () => {

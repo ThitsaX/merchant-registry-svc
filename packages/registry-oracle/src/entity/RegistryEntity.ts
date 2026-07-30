@@ -9,6 +9,7 @@ import {
 
 @Entity('registry')
 @Index(['merchant_id', 'checkout_counter_id'], { unique: true })
+@Index(['alias_value'], { unique: true })
 export class RegistryEntity {
   @PrimaryGeneratedColumn()
     id!: number
@@ -28,7 +29,7 @@ export class RegistryEntity {
   @Column({ nullable: false, default: 'MERCHANT_PAYINTOID' })
     alias_type!: string
 
-  @Column({ nullable: false })
+  @Column({ nullable: false, length: 32 })
     alias_value!: string
 
   @Column({ nullable: false, default: false })

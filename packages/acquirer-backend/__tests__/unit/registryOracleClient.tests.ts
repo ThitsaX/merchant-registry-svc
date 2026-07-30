@@ -1,5 +1,6 @@
 import axios from 'axios'
 import {
+  RegistryAliasConflictError,
   registerDFSPWithRegistry,
   registerMerchantsWithRegistry
 } from '../../src/services/registryOracleClient'
@@ -56,6 +57,21 @@ describe('Registry Oracle HTTP client', () => {
         'idempotency-key': 'dfsp-idempotency-key'
       }))
     }
+  })
+
+  it('surfaces Registry Oracle alias conflicts without retrying', async () => {
+    const request = jest.spyOn(axios, 'request').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: { message: 'Alias "DUPLICATE" is already registered' }
+      }
+    })
+
+    await expect(
+      registerMerchantsWithRegistry([], 'duplicate-alias-key')
+    ).rejects.toThrow(RegistryAliasConflictError)
+    expect(request).toHaveBeenCalledTimes(1)
   })
 
   it('allows a merchant after successful Registry Oracle registration', async () => {

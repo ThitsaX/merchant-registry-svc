@@ -13,6 +13,7 @@ import { In } from 'typeorm'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
 import {
+  RegistryAliasConflictError,
   type RegistryMerchantData,
   registerMerchantsWithRegistry
 } from '../../services/registryOracleClient'
@@ -193,6 +194,7 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
     const registryMerchantData: RegistryMerchantData[] = merchants.map(merchant => {
       const dfsp = merchant.dfsps[0]
       const checkoutCounter = merchant.checkout_counters[0]
+      const requestedAlias = checkoutCounter?.alias_value?.trim()
       if (dfsp === undefined) {
         throw new Error(`Merchant ${merchant.id} is missing a DFSP`)
       }
@@ -202,7 +204,10 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
         fspId: dfsp.fspId,
         checkout_counter_id: checkoutCounter?.id,
         currency_code: merchant.currency_code,
-        lei: merchant.lei
+        lei: merchant.lei,
+        alias_value: requestedAlias !== undefined && requestedAlias.length > 0
+          ? requestedAlias
+          : undefined
       }
     })
 
@@ -234,6 +239,10 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
       'Merchant',
       {}, {}, portalUser
     )
+    if (e instanceof RegistryAliasConflictError) {
+      res.status(409).send({ message: e.message })
+      return
+    }
     res.status(500).send({ message: e })
   }
 }

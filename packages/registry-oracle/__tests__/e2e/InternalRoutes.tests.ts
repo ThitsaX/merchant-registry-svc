@@ -83,6 +83,61 @@ export function internalRoutesTests (app: Application): void {
     expect((await requestWithMerchantId(77202)).status).toBe(409)
   })
 
+  it('registers a caller-provided merchant alias', async () => {
+    const response = await request(app)
+      .post('/internal/v1/merchants/registrations')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+      .set('Idempotency-Key', 'custom-merchant-alias')
+      .send({
+        merchants: [{
+          merchant_id: 77301,
+          fspId: 'fsp-internal',
+          dfsp_name: 'Internal DFSP',
+          checkout_counter_id: 77401,
+          alias_value: 'LBR-MER-00012345',
+          currency_code: {
+            iso_code: 'USD',
+            description: 'US Dollar'
+          }
+        }]
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data[0].alias_value).toBe('LBR-MER-00012345')
+  })
+
+  it('rejects malformed and duplicate merchant aliases', async () => {
+    const register = async (
+      merchantId: number,
+      checkoutCounterId: number,
+      aliasValue: string,
+      idempotencyKey: string
+    ) => await request(app)
+      .post('/internal/v1/merchants/registrations')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+      .set('Idempotency-Key', idempotencyKey)
+      .send({
+        merchants: [{
+          merchant_id: merchantId,
+          fspId: 'fsp-internal',
+          dfsp_name: 'Internal DFSP',
+          checkout_counter_id: checkoutCounterId,
+          alias_value: aliasValue,
+          currency_code: {
+            iso_code: 'USD',
+            description: 'US Dollar'
+          }
+        }]
+      })
+
+    expect((await register(77501, 77601, 'bad alias', 'invalid-alias')).status).toBe(400)
+    expect((await register(77502, 77602, 'UNIQUE-ALIAS', 'unique-alias-1')).status).toBe(200)
+
+    const duplicate = await register(77503, 77603, 'UNIQUE-ALIAS', 'unique-alias-2')
+    expect(duplicate.status).toBe(409)
+    expect(duplicate.body.message).toContain('already registered')
+  })
+
   it('replays DFSP credential registration without duplicate credentials', async () => {
     const register = async () => await request(app)
       .put('/internal/v1/dfsps/fsp-credential/access-credential')

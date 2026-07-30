@@ -167,6 +167,7 @@ Before starting, collect:
   and settlement currency
 - Registered name, turnover, MCC, LEI, and business-license information when
   applicable
+- An optional custom merchant alias agreed with the DFSP
 - Physical or virtual location details
 - Country and at least a town or district
 - Checkout-counter description
@@ -193,6 +194,13 @@ the current form does not mark every address field as mandatory.
 
 Only the user recorded as the maker can move that merchant from `Draft` to
 `Review`.
+
+The optional **Custom Merchant Alias** is a scheme-facing identifier, not the
+merchant's display name. It must be globally unique and contain 1-32 letters,
+numbers, underscores, or hyphens. If it is omitted, Registry Oracle keeps the
+existing behavior: use the LEI when supplied, otherwise generate an alias from
+the merchant ID. Registry Oracle confirms ownership at approval time and
+rejects a duplicate alias without approving the merchant.
 
 ### Checker steps
 
@@ -306,6 +314,18 @@ user, alias, document, or QR data.
 
 ## 9. Before using a non-local environment
 
+- Check Registry Oracle for duplicate aliases before deploying the unique alias
+  constraint:
+
+  ```sql
+  SELECT alias_value, COUNT(*) AS alias_count
+  FROM registry
+  GROUP BY alias_value
+  HAVING COUNT(*) > 1;
+  ```
+
+  Resolve every returned row before deployment. Duplicate scheme-facing aliases
+  are ambiguous and cannot be retained.
 - Replace the bootstrap password, JWT secret, database password, MinIO
   credentials, and Registry internal API key.
 - Disable the bootstrap account after permanent Hub Admins are working.

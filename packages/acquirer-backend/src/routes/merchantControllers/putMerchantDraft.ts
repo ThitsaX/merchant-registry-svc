@@ -20,6 +20,7 @@ import { uploadMerchantDocument } from '../../services/S3Client'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
+import { saveRequestedMerchantAlias } from '../../services/merchantAlias'
 /**
  * @openapi
  * /merchants/{id}/draft:
@@ -72,7 +73,10 @@ import { gleifService } from '../../services/GLEIFService'
  *                 example: "Individual"
  *               payinto_alias:
  *                 type: string
- *                 example: "merchant1"
+ *                 minLength: 1
+ *                 maxLength: 32
+ *                 pattern: '^[A-Za-z0-9_-]+$'
+ *                 example: "LBR-MER-00012345"
  *                 required: false
  *               license_number:
  *                 type: string
@@ -190,7 +194,7 @@ export async function putMerchantDraft (req: AuthRequest, res: Response) {
   const merchantRepository = AppDataSource.getRepository(MerchantEntity)
   const merchant = await merchantRepository.findOne({
     where: { id },
-    relations: ['business_licenses', 'dfsps']
+    relations: ['business_licenses', 'dfsps', 'checkout_counters']
   })
 
   if (merchant === null) {
@@ -248,6 +252,7 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   }
   try {
     await merchantRepository.save(merchant)
+    await saveRequestedMerchantAlias(merchant, req.body.payinto_alias)
 
     // Update License Data
     const file = req.file
@@ -290,6 +295,10 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   const merchantData = {
     ...merchant,
     created_by: undefined,
+    checkout_counters: merchant.checkout_counters?.map(checkoutCounter => {
+      const { merchant, ...checkoutCounterData } = checkoutCounter
+      return checkoutCounterData
+    }),
 
     // Fix TypeError: Converting circular structure to JSON
     business_licenses: merchant.business_licenses?.map(license => {

@@ -51,6 +51,28 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.message[0]).toContain('merchant_type: Invalid enum value.')
   })
 
+  it('should reject an unsupported merchant category code', async () => {
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('mcc', '1234')
+
+    expect(res.statusCode).toEqual(422)
+    expect(res.body.message).toContain('mcc: MCC is not supported')
+  })
+
+  it('should reject an unsupported business activity code', async () => {
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('category_code', 'invalid')
+
+    expect(res.statusCode).toEqual(422)
+    expect(res.body.message).toContain(
+      'category_code: Business activity is not supported'
+    )
+  })
+
   it('should respond with 201 and merchant data when everything is valid with Draft status', async () => {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
@@ -61,7 +83,7 @@ export function testPostMerchantDraft (app: Application): void {
       .field('monthly_turnover', 0.5)
       .field('currency_code', 'PHP')
       .field('category_code', '10410')
-      .field('mcc', '5812')
+      .field('mcc', ' 5812 ')
       .field('merchant_type', 'Individual')
       .field('payinto_alias', 'merchant1')
       .field('license_number', '123456789')

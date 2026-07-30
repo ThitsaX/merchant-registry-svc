@@ -732,3 +732,7 @@ export const MerchantCategoryCodes: Record<string,string>  = {
   "99000": "Activities of extraterritorial organisations and bodies",
   "99999": "Dormant Company"
 }
+
+export function isMerchantCategoryCode (value: string): boolean {
+  return Object.prototype.hasOwnProperty.call(MerchantCategoryCodes, value)
+}

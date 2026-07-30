@@ -129,11 +129,10 @@ describe('BusinessInfoForm', () => {
       screen.getByLabelText(/Number of Employee/)
     const monthlyTurnOverInput: HTMLInputElement =
       screen.getByLabelText(/Monthly Turn Over/)
-    const merchantCategoryInput: HTMLSelectElement =
-      screen.getByLabelText(/^Merchant Category(?! Code)/)
-    const mccInput: HTMLInputElement = screen.getByLabelText(
-      /Merchant Category Code/
-    )
+    const merchantCategoryInput: HTMLInputElement =
+      screen.getByLabelText(/Business Activity/, { selector: 'input' })
+    const mccInput: HTMLInputElement =
+      screen.getByLabelText(/Payment Category/, { selector: 'input' })
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
     const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
     const accountNumberInput: HTMLInputElement = screen.getByLabelText(/Account Number/)
@@ -153,6 +152,27 @@ describe('BusinessInfoForm', () => {
     expect(radioYesInput.checked).toEqual(true)
     expect(radioNoInput.checked).toEqual(false)
     expect(licenseNumberInput.value).toEqual('1234')
+  })
+
+  it('should search and select a business activity', async () => {
+    render(
+      <TestWrapper>
+        <BusinessInfoForm setActiveStep={mockSetActiveStep} />
+      </TestWrapper>
+    )
+
+    const businessActivityInput: HTMLInputElement =
+      screen.getByLabelText(/Business Activity/, { selector: 'input' })
+
+    fireEvent.focus(businessActivityInput)
+    fireEvent.change(businessActivityInput, { target: { value: 'rice' } })
+    fireEvent.click(
+      await screen.findByRole('option', {
+        name: /01120 Growing of rice/,
+      })
+    )
+
+    expect(businessActivityInput.value).toEqual('01120')
   })
 
   it('should reset the value of "License Number" when the "No" radio button is clicked', () => {
@@ -200,8 +220,10 @@ describe('BusinessInfoForm', () => {
     const dbaNameInput: HTMLInputElement = screen.getByLabelText(/Doing Business As Name/)
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
-    const merchantCategoryInput: HTMLSelectElement =
-      screen.getByLabelText(/^Merchant Category(?! Code)/)
+    const merchantCategoryInput: HTMLInputElement =
+      screen.getByLabelText(/Business Activity/, { selector: 'input' })
+    const mccInput: HTMLInputElement =
+      screen.getByLabelText(/Payment Category/, { selector: 'input' })
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
     const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
@@ -209,6 +231,7 @@ describe('BusinessInfoForm', () => {
     fireEvent.change(dbaNameInput, { target: { value: 'marco' } })
     fireEvent.change(numberOfEmployeeInput, { target: { value: '6 - 10' } })
     fireEvent.change(merchantCategoryInput, { target: { value: '10120' } })
+    fireEvent.change(mccInput, { target: { value: '5812' } })
     fireEvent.change(merchantTypeInput, { target: { value: 'Small Shop' } })
     fireEvent.change(currencyInput, { target: { value: 'ALL' } })
     fireEvent.click(submitButton)

@@ -20,6 +20,7 @@ import { MdFileUpload } from 'react-icons/md'
 import {
   CurrencyDescriptions,
   MerchantCategoryCodes,
+  MerchantClassificationCodes,
   MerchantType,
   NumberOfEmployees,
 } from 'shared-lib'
@@ -28,7 +29,7 @@ import { businessInfoSchema, type BusinessInfoForm } from '@/lib/validations/reg
 import { useCreateBusinessInfo, useDraft, useUpdateBusinessInfo } from '@/api/hooks/forms'
 import { useMerchantId } from '@/hooks'
 import { CustomButton, FloatingSpinner } from '@/components/ui'
-import { FormInput, FormSelect } from '@/components/form'
+import { FormDatalist, FormInput, FormSelect } from '@/components/form'
 import FileUploadModal from './FileUploadModal'
 import GridShell from './GridShell'
 
@@ -43,6 +44,13 @@ const MERCHANT_TYPES = Object.entries(MerchantType).map(([, label]) => ({
 }))
 
 const MERCHANT_CATEGORY_CODES = Object.entries(MerchantCategoryCodes).map(
+  ([value, label]) => ({
+    value,
+    label,
+  })
+)
+
+const MERCHANT_CLASSIFICATION_CODES = Object.entries(MerchantClassificationCodes).map(
   ([value, label]) => ({
     value,
     label,
@@ -255,23 +263,26 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             inputProps={{ type: 'number' }}
           />
 
-          <FormSelect
+          <FormDatalist
             isRequired
             name='category_code'
-            register={register}
+            control={control}
             errors={errors}
-            label='Merchant Category'
-            placeholder='Merchant Category'
+            label='Business Activity (Industry)'
+            placeholder='Search by code or industry'
+            helperText='The industry classification used to describe what the business does.'
             options={MERCHANT_CATEGORY_CODES}
           />
 
-          <FormInput
+          <FormDatalist
+            isRequired
             name='mcc'
-            register={register}
+            control={control}
             errors={errors}
-            label='Merchant Category Code (MCC)'
-            placeholder='4-digit ISO 18245 MCC'
-            inputProps={{ inputMode: 'numeric', maxLength: 4 }}
+            label='Payment Category (MCC)'
+            placeholder='Search by code or business type'
+            helperText='The four-digit ISO 18245 category included in merchant payment and QR data.'
+            options={MERCHANT_CLASSIFICATION_CODES}
           />
 
           <FormSelect

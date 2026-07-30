@@ -126,11 +126,11 @@ export const MerchantInfo = ({
             />
 
             <DetailsItem
-              label='Merchant Category'
+              label='Business Activity'
               value={category_code?.description || 'N/A'}
             />
 
-            <DetailsItem label='MCC' value={mcc || 'N/A'} />
+            <DetailsItem label='Payment MCC' value={mcc || 'N/A'} />
 
             <DetailsItem label='Merchant Type' value={merchant_type || 'N/A'} />
 

@@ -1,7 +1,10 @@
 /* istanbul ignore file */
 import axios, { isAxiosError, type AxiosRequestConfig } from 'axios'
 import 'dotenv/config'
-import { MerchantRegistrationStatus } from 'shared-lib'
+import {
+  isMerchantClassificationCode,
+  MerchantRegistrationStatus
+} from 'shared-lib'
 import logger from './logger'
 import { readEnv } from '../setup/readEnv'
 import { v4 as uuidv4 } from 'uuid'
@@ -20,10 +23,6 @@ const REGISTRY_HTTP_RETRIES = readEnv('REGISTRY_HTTP_RETRIES', 2, true) as numbe
 const EMVCO_MERCHANT_ACCOUNT_GUI = readEnv(
   'EMVCO_MERCHANT_ACCOUNT_GUI',
   'org.mojaloop'
-) as string
-const EMVCO_DEFAULT_MCC = readEnv(
-  'EMVCO_DEFAULT_MCC',
-  '0000'
 ) as string
 
 export interface RegistryMerchantData {
@@ -174,6 +173,13 @@ async function generateQRImageForAlias (
       return null
     }
 
+    if (merchant.mcc == null || !isMerchantClassificationCode(merchant.mcc)) {
+      logger.error(
+        'Error while generating QR image: Merchant %d does not have an approved MCC',
+        merchant.id
+      )
+      return null
+    }
     const checkoutCounter = await AppDataSource.manager.findOne(CheckoutCounterEntity, {
       where: { id: aliasData.checkout_counter_id },
       relations: ['checkout_location']
@@ -191,7 +197,7 @@ async function generateQRImageForAlias (
       globallyUniqueIdentifier: EMVCO_MERCHANT_ACCOUNT_GUI,
       checkoutCounterAliasValue: aliasData.alias_value,
       checkoutCounterReference,
-      merchantCategoryCode: merchant.mcc ?? EMVCO_DEFAULT_MCC,
+      merchantCategoryCode: merchant.mcc,
       transactionCurrency: merchant.currency_code.iso_code,
       countryCode: country?.code ?? '',
       merchantName: merchant.dba_trading_name.trim().slice(0, 25).trimEnd(),

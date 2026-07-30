@@ -59,5 +59,3 @@ spec:
             value: "{{ .Values.acquirerBackend.env.registryHttpRetries }}"
           - name: EMVCO_MERCHANT_ACCOUNT_GUI
             value: "{{ .Values.acquirerBackend.env.emvcoMerchantAccountGui }}"
-          - name: EMVCO_DEFAULT_MCC
-            value: "{{ .Values.acquirerBackend.env.emvcoDefaultMcc }}"

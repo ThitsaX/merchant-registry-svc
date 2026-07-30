@@ -235,7 +235,7 @@ describe('RevertedMerchantRecords', () => {
       isFetching: false,
       isSuccess: true,
     })
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+    const setItemSpy = vi.spyOn(localStorage, 'setItem')
 
     render(
       <TestWrapper>

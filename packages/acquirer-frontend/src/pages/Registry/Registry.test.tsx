@@ -54,7 +54,7 @@ describe('Registry', () => {
 
   it('should remove merchantId from local storage when add new record button is clicked', () => {
     mockDraftCount.mockReturnValue({ data: 3, isLoading: false })
-    const removeMerchantIdSpy = vi.spyOn(Storage.prototype, 'removeItem')
+    const removeMerchantIdSpy = vi.spyOn(localStorage, 'removeItem')
 
     render(
       <TestWrapper>

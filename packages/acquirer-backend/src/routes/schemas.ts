@@ -98,3 +98,19 @@ export const BusinessOwnerSubmitDataSchema = z.object({
   latitude: z.string().optional(),
   longitude: z.string().optional()
 })
+
+export const DynamicQRSubmitDataSchema = z.object({
+  amount: z.string()
+    .trim()
+    .max(13)
+    .regex(
+      /^(?:0|[1-9]\d*)(?:\.\d+)?$/,
+      'Amount must be a decimal string without leading zeroes'
+    )
+    .refine(value => /[1-9]/.test(value), 'Amount must be greater than zero'),
+  reference: z.string()
+    .trim()
+    .min(1)
+    .max(25)
+    .regex(/^[\x20-\x7E]+$/, 'Reference must contain printable ASCII characters only')
+})

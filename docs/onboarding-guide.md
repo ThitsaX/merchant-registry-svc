@@ -227,7 +227,31 @@ To verify completion:
 2. Open **View Details** for the merchant.
 3. Select **View QR Code** for the checkout counter.
 
-## 6. Password recovery and user status
+## 6. Generate a dynamic transaction QR
+
+Merchant onboarding creates a reusable static QR. A transaction-specific QR is
+generated separately after the merchant is `Approved`, explicitly `Allowed`,
+and has a registered checkout alias and location.
+
+Use:
+
+```http
+POST /api/v1/merchants/{merchantId}/checkout-counters/{checkoutCounterId}/dynamic-qr
+Authorization: Bearer <dfsp-admin-or-operator-jwt>
+Content-Type: application/json
+
+{
+  "amount": "12.50",
+  "reference": "ORDER-2026-00042"
+}
+```
+
+The amount must follow the registered currency's decimal precision. The
+response contains the EMVCo payload and a PNG data URL. This endpoint is a
+stateless generator: the calling merchant or DFSP payment system must keep the
+reference unique and manage transaction expiry and replay protection.
+
+## 7. Password recovery and user status
 
 With the default `EMAIL_PROVIDER=none`, **Forgot Password** is intentionally
 unavailable.
@@ -246,7 +270,7 @@ change-password function while signed in.
 If SendGrid is enabled, account notifications still do not contain passwords;
 emailed forgot-password links are valid for one hour.
 
-## 7. Routine operations
+## 8. Routine operations
 
 View container output:
 
@@ -284,7 +308,7 @@ docker compose down --volumes
 The final command is destructive and cannot recover existing local merchant,
 user, alias, document, or QR data.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 - **Services are healthy but lists are empty:** first-boot seed work may still
   be running; inspect both API application logs.
@@ -304,7 +328,7 @@ user, alias, document, or QR data.
   aligned. Keep `MINIO_HOST_PORT=9000` for the current local presigned-URL
   configuration.
 
-## 9. Before using a non-local environment
+## 10. Before using a non-local environment
 
 - Replace the bootstrap password, JWT secret, database password, MinIO
   credentials, and Registry internal API key.

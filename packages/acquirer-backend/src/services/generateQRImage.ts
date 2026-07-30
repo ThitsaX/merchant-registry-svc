@@ -14,6 +14,8 @@ export interface EMVQRCodeData {
   countryCode: string
   merchantName: string
   merchantCity: string
+  transactionAmount?: string
+  transactionReference?: string
 }
 
 function assertEMVText (field: string, value: string, maxLength: number): void {
@@ -50,15 +52,15 @@ function addDataObject (id: string, value: string): string {
   return `${id}${value.length.toString().padStart(2, '0')}${value}`
 }
 
-function getNumericCurrencyCode (currency: string): string {
+function getCurrencyCodeRecord (currency: string): currencyCodes.CurrencyCodeRecord {
   const normalizedCurrency = currency.trim().toUpperCase()
-  if (/^\d{3}$/.test(normalizedCurrency)) return normalizedCurrency
-
-  const currencyRecord = currencyCodes.code(normalizedCurrency)
+  const currencyRecord = /^\d{3}$/.test(normalizedCurrency)
+    ? currencyCodes.number(normalizedCurrency)
+    : currencyCodes.code(normalizedCurrency)
   if (currencyRecord === undefined) {
     throw new Error(`Unknown ISO 4217 currency code: ${currency}`)
   }
-  return currencyRecord.number
+  return currencyRecord
 }
 
 function crc16CcittFalse (value: string): string {
@@ -78,15 +80,41 @@ export const getEMVQRCodeText = (data: EMVQRCodeData): string => {
   const globallyUniqueIdentifier = data.globallyUniqueIdentifier.trim()
   const alias = data.checkoutCounterAliasValue.trim()
   const reference = data.checkoutCounterReference?.trim()
+  const transactionAmount = data.transactionAmount?.trim()
+  const transactionReference = data.transactionReference?.trim()
   const merchantCategoryCode = data.merchantCategoryCode.trim()
-  const transactionCurrency = getNumericCurrencyCode(data.transactionCurrency)
+  const currencyCodeRecord = getCurrencyCodeRecord(data.transactionCurrency)
+  const transactionCurrency = currencyCodeRecord.number
   const countryCode = data.countryCode.trim().toUpperCase()
   const merchantName = data.merchantName.trim()
   const merchantCity = data.merchantCity.trim()
+  const isDynamic = transactionAmount !== undefined || transactionReference !== undefined
 
   assertGloballyUniqueIdentifier(globallyUniqueIdentifier)
   assertEMVText('Checkout counter alias', alias, 99)
   if (reference !== undefined) assertEMVText('Checkout counter reference', reference, 99)
+  if (
+    (transactionAmount === undefined && transactionReference !== undefined) ||
+    (transactionAmount !== undefined && transactionReference === undefined)
+  ) {
+    throw new Error('Transaction amount and reference are both required for a dynamic QR code')
+  }
+  if (transactionAmount !== undefined && transactionReference !== undefined) {
+    if (
+      transactionAmount.length > 13 ||
+      !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(transactionAmount) ||
+      !/[1-9]/.test(transactionAmount)
+    ) {
+      throw new Error('Transaction amount must be a positive decimal of at most 13 characters')
+    }
+    const fractionDigits = transactionAmount.split('.')[1]?.length ?? 0
+    if (fractionDigits > currencyCodeRecord.digits) {
+      throw new Error(
+        `Transaction amount must use at most ${currencyCodeRecord.digits} decimal places for ${currencyCodeRecord.code}`
+      )
+    }
+    assertEMVText('Transaction reference', transactionReference, 25)
+  }
   if (!/^\d{4}$/.test(merchantCategoryCode)) {
     throw new Error('Merchant category code must be a four-digit ISO 18245 MCC')
   }
@@ -104,13 +132,19 @@ export const getEMVQRCodeText = (data: EMVQRCodeData): string => {
   }
 
   let payload = addDataObject('00', '01')
-  payload += addDataObject('01', '11')
+  payload += addDataObject('01', isDynamic ? '12' : '11')
   payload += addDataObject('28', merchantAccountInformation)
   payload += addDataObject('52', merchantCategoryCode)
   payload += addDataObject('53', transactionCurrency)
+  if (transactionAmount !== undefined) {
+    payload += addDataObject('54', transactionAmount)
+  }
   payload += addDataObject('58', countryCode)
   payload += addDataObject('59', merchantName)
   payload += addDataObject('60', merchantCity)
+  if (transactionReference !== undefined) {
+    payload += addDataObject('62', addDataObject('05', transactionReference))
+  }
 
   payload += '6304'
   return payload + crc16CcittFalse(payload)

@@ -48,6 +48,7 @@ import { testPostUserLogout } from './PostUserLogout.tests'
 import { testGetCountryCode } from './GetCountryCode.tests'
 import { testGetHubAudits } from './GetHubAudits.tests'
 import { testPutUserStatus } from './PutUserStatus.tests'
+import { testPostDynamicQR } from './PostDynamicQR.tests'
 
 jest.mock('@sendgrid/mail', () => ({
   setApiKey: jest.fn(),
@@ -93,6 +94,10 @@ describe('E2E API Tests', () => {
 
   describe('GET Merchant Checkout Counters API Tests', () => {
     testGetCheckoutCounters(app)
+  })
+
+  describe('POST Dynamic Merchant QR API Tests', () => {
+    testPostDynamicQR(app)
   })
 
   describe('POST Merchant Draft API Tests', () => {

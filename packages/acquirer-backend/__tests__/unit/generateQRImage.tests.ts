@@ -29,6 +29,57 @@ describe('getEMVQRCodeText', () => {
     )
   })
 
+  it('generates a dynamic payload with amount and transaction reference', () => {
+    const payload = getEMVQRCodeText({
+      ...validEMVQRCodeData,
+      transactionAmount: '12.50',
+      transactionReference: 'ORDER-2026-00042'
+    })
+
+    expect(payload).toMatch(/^000201010212/)
+    expect(payload).toContain('540512.50')
+    expect(payload).toContain('62200516ORDER-2026-00042')
+    expect(payload).toMatch(/6304[0-9A-F]{4}$/)
+  })
+
+  it.each([
+    [{ transactionAmount: '12.50' }, 'Transaction amount and reference are both required'],
+    [{ transactionReference: 'ORDER-42' }, 'Transaction amount and reference are both required'],
+    [
+      { transactionAmount: '0', transactionReference: 'ORDER-42' },
+      'Transaction amount must be a positive decimal'
+    ],
+    [
+      { transactionAmount: '01.00', transactionReference: 'ORDER-42' },
+      'Transaction amount must be a positive decimal'
+    ],
+    [
+      { transactionAmount: '1.00', transactionReference: 'R'.repeat(26) },
+      'Transaction reference must not exceed 25 characters'
+    ],
+    [
+      {
+        transactionAmount: '1.001',
+        transactionReference: 'ORDER-42',
+        transactionCurrency: 'PHP'
+      },
+      'Transaction amount must use at most 2 decimal places for PHP'
+    ],
+    [
+      {
+        transactionAmount: '1.00',
+        transactionReference: 'ORDER-42',
+        transactionCurrency: 'JPY'
+      },
+      'Transaction amount must use at most 0 decimal places for JPY'
+    ]
+  ])('rejects invalid dynamic QR data %#', (override, expectedMessage) => {
+    expect(() => getEMVQRCodeText({
+      ...validEMVQRCodeData,
+      ...override
+    })).toThrow(expectedMessage)
+  })
+
   it.each([
     ['globally unique identifier', { globallyUniqueIdentifier: 'random value' }],
     ['merchant category code', { merchantCategoryCode: '10120' }],

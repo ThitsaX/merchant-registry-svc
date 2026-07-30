@@ -22,10 +22,13 @@ import { putBulkWaitingAliasGeneration } from './merchantControllers/putMerchant
 import { putBulkReject } from './merchantControllers/putMerchantRejectBulk'
 import { putBulkRevert } from './merchantControllers/putMerchantRevertBulk'
 import { exportMerchantFilterXlsx } from './merchantControllers/getMerchantExportFilterXlsx'
+import { postDynamicQR } from './merchantControllers/postDynamicQR'
 
 import { authenticateJWT } from '../middleware/authenticate'
 import { checkPermissions } from '../middleware/checkPermissions'
+import { checkPortalUserType } from '../middleware/checkUserType'
 import { PermissionsEnum } from '../types/permissions'
+import { PortalUserType } from 'shared-lib'
 
 const router = express.Router()
 
@@ -136,5 +139,11 @@ router.get('/merchants/:id/checkout-counters',
   authenticateJWT,
   checkPermissions(PermissionsEnum.VIEW_MERCHANTS),
   getMerchantCheckoutCounters)
+
+router.post('/merchants/:merchantId/checkout-counters/:checkoutCounterId/dynamic-qr',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.EDIT_MERCHANTS),
+  checkPortalUserType(PortalUserType.DFSP),
+  postDynamicQR)
 
 export default router

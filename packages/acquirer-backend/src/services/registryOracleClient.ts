@@ -3,6 +3,7 @@ import axios, { isAxiosError, type AxiosRequestConfig } from 'axios'
 import 'dotenv/config'
 import {
   isMerchantClassificationCode,
+  MerchantAllowBlockStatus,
   MerchantRegistrationStatus
 } from 'shared-lib'
 import logger from './logger'
@@ -176,7 +177,6 @@ async function generateQRImageForAlias (
       logger.error('Error while generating QR image: Merchant Not Found \'%o\'', aliasData)
       return null
     }
-
     if (merchant.mcc == null || !isMerchantClassificationCode(merchant.mcc)) {
       logger.error(
         'Error while generating QR image: Merchant %d does not have an approved MCC',
@@ -184,6 +184,7 @@ async function generateQRImageForAlias (
       )
       return null
     }
+
     const checkoutCounter = await AppDataSource.manager.findOne(CheckoutCounterEntity, {
       where: { id: aliasData.checkout_counter_id },
       relations: ['checkout_location']
@@ -256,7 +257,8 @@ async function updateMerchantStatus (merchantId: number): Promise<void> {
   })
 
   const updateData: any = {
-    registration_status: MerchantRegistrationStatus.APPROVED
+    registration_status: MerchantRegistrationStatus.APPROVED,
+    allow_block_status: MerchantAllowBlockStatus.ALLOWED
   }
 
   if (shouldSetGleifVerifiedAt(currentMerchant)) {

@@ -4,6 +4,12 @@ import {
   registerMerchantsWithRegistry
 } from '../../src/services/registryOracleClient'
 import logger from '../../src/services/logger'
+import { AppDataSource } from '../../src/database/dataSource'
+import { MerchantEntity } from '../../src/entity/MerchantEntity'
+import {
+  MerchantAllowBlockStatus,
+  MerchantRegistrationStatus
+} from 'shared-lib'
 
 logger.silent = true
 describe('Registry Oracle HTTP client', () => {
@@ -50,5 +56,36 @@ describe('Registry Oracle HTTP client', () => {
         'idempotency-key': 'dfsp-idempotency-key'
       }))
     }
+  })
+
+  it('allows a merchant after successful Registry Oracle registration', async () => {
+    jest.spyOn(axios, 'request').mockResolvedValue({
+      data: {
+        data: [{
+          merchant_id: 42,
+          checkout_counter_id: 0,
+          alias_value: '10000042'
+        }]
+      }
+    })
+    const merchant = new MerchantEntity()
+    merchant.gleif_verified_at = new Date()
+    jest.spyOn(AppDataSource.manager, 'findOne').mockResolvedValue(merchant)
+    const update = jest.spyOn(AppDataSource.manager, 'update').mockResolvedValue({
+      raw: [],
+      affected: 1,
+      generatedMaps: []
+    })
+
+    await registerMerchantsWithRegistry([], 'merchant-approval-key')
+
+    expect(update).toHaveBeenCalledWith(
+      MerchantEntity,
+      42,
+      expect.objectContaining({
+        registration_status: MerchantRegistrationStatus.APPROVED,
+        allow_block_status: MerchantAllowBlockStatus.ALLOWED
+      })
+    )
   })
 })

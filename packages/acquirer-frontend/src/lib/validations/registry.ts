@@ -2,6 +2,8 @@ import { z } from 'zod'
 import {
   BusinessOwnerIDType,
   CurrencyCodes,
+  isMerchantCategoryCode,
+  isMerchantClassificationCode,
   MerchantLocationType,
   MerchantType,
   NumberOfEmployees,
@@ -25,13 +27,14 @@ export const businessInfoSchema = z
     category_code: z
       .string()
       .trim()
-      .min(1, { message: 'Please select a merchant category' }),
+      .min(1, { message: 'Please select a business activity' })
+      .refine(isMerchantCategoryCode, { message: 'Select a supported business activity' }),
     mcc: z
       .string()
       .trim()
+      .min(1, { message: 'MCC is required' })
       .regex(/^\d{4}$/, { message: 'MCC must contain exactly 4 digits' })
-      .or(z.literal(''))
-      .optional(),
+      .refine(isMerchantClassificationCode, { message: 'Select a supported MCC' }),
     merchant_type: z.nativeEnum(MerchantType, {
       errorMap: () => ({ message: 'Please select a merchant type' }),
     }),

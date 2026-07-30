@@ -3,7 +3,12 @@ import { type Response } from 'express'
 import { AppDataSource } from '../../database/dataSource'
 import { MerchantEntity } from '../../entity/MerchantEntity'
 import logger from '../../services/logger'
-import { MerchantRegistrationStatus, AuditActionType, AuditTrasactionStatus } from 'shared-lib'
+import {
+  MerchantRegistrationStatus,
+  AuditActionType,
+  AuditTrasactionStatus,
+  isMerchantClassificationCode
+} from 'shared-lib'
 import { In } from 'typeorm'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
@@ -145,6 +150,20 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
       )
       return res.status(422).send({
         message: `Merchant ${merchant.id} does not belong to the same DFSP as the user.`
+      })
+    }
+
+    if (merchant.mcc == null || !isMerchantClassificationCode(merchant.mcc)) {
+      await audit(
+        AuditActionType.UPDATE,
+        AuditTrasactionStatus.FAILURE,
+        'putBulkApprove',
+        'Merchant is missing a valid merchant category code',
+        'Merchant',
+        {}, {}, portalUser
+      )
+      return res.status(422).send({
+        message: `Merchant ${merchant.id} does not have a valid merchant category code (MCC).`
       })
     }
   }

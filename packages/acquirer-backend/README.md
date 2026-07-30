@@ -56,7 +56,6 @@
 | `REGISTRY_HTTP_RETRIES`                  | `2`                                  | Number of retries for network, throttling, and server failures.                        |
 | **EMVCo QR Configuration**               |                                      |                                                                                        |
 | `EMVCO_MERCHANT_ACCOUNT_GUI`             | `org.mojaloop`                       | Reverse-domain identifier that defines Mojaloop merchant account fields. Maximum 32 characters. |
-| `EMVCO_DEFAULT_MCC`                      | `0000`                               | Four-digit fallback MCC for legacy merchants. A merchant-level MCC takes precedence.   |
 | **S3/Minio Configuration**               |                                      |                                                                                        |
 | `S3_ENDPOINT`                            | `localhost`                          | S3 or Minio server endpoint.                                                           |
 | `S3_PORT`                                | `9000`                               | Port for S3 or Minio server. `443` for AWS S3 with HTTPS.                              |

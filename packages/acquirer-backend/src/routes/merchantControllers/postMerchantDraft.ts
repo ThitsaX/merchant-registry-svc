@@ -247,9 +247,11 @@ function createMerchantEntity (merchantRepository: any, body: any, portalUser: a
   merchant.employees_num = body.employees_num
   merchant.monthly_turnover = body.monthly_turnover
   merchant.currency_code = body.currency_code
-  merchant.category_code = body.category_code
-  merchant.mcc = typeof body.mcc === 'string' && body.mcc.length > 0
-    ? body.mcc
+  merchant.category_code = typeof body.category_code === 'string'
+    ? body.category_code.trim()
+    : body.category_code
+  merchant.mcc = typeof body.mcc === 'string' && body.mcc.trim().length > 0
+    ? body.mcc.trim()
     : null
   merchant.merchant_type = body.merchant_type
   merchant.registration_status = MerchantRegistrationStatus.DRAFT

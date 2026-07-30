@@ -5,7 +5,8 @@ import { AppDataSource } from '../../database/dataSource'
 import { MerchantEntity } from '../../entity/MerchantEntity'
 import logger from '../../services/logger'
 import {
-  MerchantRegistrationStatus
+  MerchantRegistrationStatus,
+  isMerchantClassificationCode
   , AuditActionType, AuditTrasactionStatus
 } from 'shared-lib'
 import { audit } from '../../utils/audit'
@@ -110,6 +111,12 @@ export async function putMerchantStatusReadyToReview (req: AuthRequest, res: Res
       logger.error('Only Draft Merchant can be marked as Review')
       return res.status(401).send({
         message: 'Only Draft Merchant can be marked as Review'
+      })
+    }
+
+    if (merchant.mcc == null || !isMerchantClassificationCode(merchant.mcc)) {
+      return res.status(422).send({
+        message: 'A valid merchant category code (MCC) is required before review'
       })
     }
 

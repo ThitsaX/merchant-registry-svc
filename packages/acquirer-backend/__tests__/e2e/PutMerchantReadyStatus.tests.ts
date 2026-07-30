@@ -69,6 +69,7 @@ export function testPutMerchantStatusReadyToReview (app: Application): void {
       .field('monthly_turnover', 0.5)
       .field('currency_code', 'PHP')
       .field('category_code', '10410')
+      .field('mcc', '5812')
       .field('merchant_type', 'Individual')
       .field('license_number', '123456789')
     draftedMerchantId = res4.body.data.id
@@ -151,6 +152,25 @@ export function testPutMerchantStatusReadyToReview (app: Application): void {
 
     // Clean up
     await AppDataSource.manager.delete(MerchantEntity, reviewMerchant.id)
+  })
+
+  it('should require a valid MCC before review', async () => {
+    await AppDataSource.manager.update(MerchantEntity, draftedMerchantId, {
+      mcc: null
+    })
+
+    const res = await request(app)
+      .put(`/api/v1/merchants/${draftedMerchantId}/ready-to-review`)
+      .set('Authorization', `Bearer ${makerToken}`)
+
+    await AppDataSource.manager.update(MerchantEntity, draftedMerchantId, {
+      mcc: '5812'
+    })
+
+    expect(res.statusCode).toEqual(422)
+    expect(res.body.message).toEqual(
+      'A valid merchant category code (MCC) is required before review'
+    )
   })
 
   it('should respond with 200 with "Status Updated to Review" message when everything is valid.', async () => {

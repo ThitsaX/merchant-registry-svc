@@ -233,9 +233,11 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   merchant.employees_num = req.body.employees_num
   merchant.monthly_turnover = req.body.monthly_turnover
   merchant.currency_code = req.body.currency_code
-  merchant.category_code = req.body.category_code
-  merchant.mcc = typeof req.body.mcc === 'string' && req.body.mcc.length > 0
-    ? req.body.mcc
+  merchant.category_code = typeof req.body.category_code === 'string'
+    ? req.body.category_code.trim()
+    : req.body.category_code
+  merchant.mcc = typeof req.body.mcc === 'string' && req.body.mcc.trim().length > 0
+    ? req.body.mcc.trim()
     : null
   merchant.merchant_type = req.body.merchant_type
   merchant.registration_status = MerchantRegistrationStatus.DRAFT

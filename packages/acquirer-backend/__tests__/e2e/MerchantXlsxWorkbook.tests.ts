@@ -60,6 +60,7 @@ export function testGETMerchantXlsxWorkbook (app: Application): void {
       .field('monthly_turnover', 0.5)
       .field('currency_code', 'PHP')
       .field('category_code', '10410')
+      .field('mcc', '5812')
       .field('merchant_type', 'Individual')
       .field('license_number', '123456789')
     merchantId = res4.body.data.id

@@ -23,8 +23,6 @@ acquirerBackend:
     registryHttpTimeoutMs: "5000"
     registryHttpRetries: "2"
     emvcoMerchantAccountGui: "org.mojaloop"
-    # Fallback for legacy merchants without an acquirer-assigned MCC.
-    emvcoDefaultMcc: "0000"
     # Optional third-party email. Use "sendgrid" and supply both values to enable.
     emailProvider: "none"
     emailFrom: ""

@@ -1,7 +1,9 @@
 import {
   BusinessOwnerIDType, CurrencyCodes, MerchantLocationType,
   MerchantType,
-  NumberOfEmployees
+  NumberOfEmployees,
+  isMerchantCategoryCode,
+  isMerchantClassificationCode
 } from 'shared-lib'
 import * as z from 'zod'
 
@@ -17,8 +19,20 @@ export const MerchantSubmitDataSchema = z.object({
   employees_num: z.nativeEnum(NumberOfEmployees).optional(),
   monthly_turnover: z.string().nullable().default(null),
   currency_code: z.nativeEnum(CurrencyCodes).optional(),
-  category_code: z.string().optional(),
-  mcc: z.string().regex(/^\d{4}$/).or(z.literal('')).optional().nullable(),
+  category_code: z
+    .string()
+    .trim()
+    .refine(isMerchantCategoryCode, { message: 'Business activity is not supported' })
+    .or(z.literal(''))
+    .optional(),
+  mcc: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, { message: 'MCC must contain exactly 4 digits' })
+    .refine(isMerchantClassificationCode, { message: 'MCC is not supported' })
+    .or(z.literal(''))
+    .optional()
+    .nullable(),
   merchant_type: z.nativeEnum(MerchantType).optional(),
   license_number: z.string().optional().optional()
 })

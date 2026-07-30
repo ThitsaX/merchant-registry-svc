@@ -62,7 +62,19 @@ export const minioClient = new Client({
   port,
   useSSL,
   accessKey,
-  secretKey
+  secretKey,
+  region: s3Region
+})
+
+const publicMinioClient = new Client({
+  endPoint: process.env.S3_PUBLIC_ENDPOINT ?? endPoint,
+  port: parseInt(process.env.S3_PUBLIC_PORT ?? String(port)),
+  useSSL: process.env.S3_PUBLIC_USE_SSL == null
+    ? useSSL
+    : process.env.S3_PUBLIC_USE_SSL === 'true',
+  accessKey,
+  secretKey,
+  region: s3Region
 })
 
 type UploadedObjectInfo = Awaited<ReturnType<Client['putObject']>>
@@ -204,7 +216,7 @@ export async function getQRImageUrl (qrPath: string): Promise<string> {
     return ''
   }
   try {
-    const url = await minioClient.presignedGetObject(merchantDocumentBucketName, qrPath)
+    const url = await publicMinioClient.presignedGetObject(merchantDocumentBucketName, qrPath)
     logger.info('Storage Server QR URL: %s', url)
     return url
   } catch (e) {
@@ -219,7 +231,7 @@ export async function getMerchantDocumentURL (documentPath: string): Promise<str
     return ''
   }
   try {
-    const url = await minioClient.presignedGetObject(merchantDocumentBucketName, documentPath)
+    const url = await publicMinioClient.presignedGetObject(merchantDocumentBucketName, documentPath)
     logger.info('Storage Server document URL: %s', url)
     return url
   } catch (e) {
@@ -234,7 +246,7 @@ export async function getDFSPLogoURL (logoPath: string): Promise<string> {
     return ''
   }
   try {
-    const url = await minioClient.presignedGetObject(dfspLogoBucketName, logoPath)
+    const url = await publicMinioClient.presignedGetObject(dfspLogoBucketName, logoPath)
     logger.info('Storage Server Logo URL: %s', url)
     return url
   } catch (e) {

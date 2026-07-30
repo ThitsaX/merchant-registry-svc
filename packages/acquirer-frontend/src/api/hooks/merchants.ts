@@ -205,6 +205,7 @@ export function useApproveMerchants() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-merchants'] })
       queryClient.invalidateQueries({ queryKey: ['alias-generated-merchants'] })
+      queryClient.invalidateQueries({ queryKey: ['merchants'] })
       toast({
         title: 'Approving Merchants Successful!',
         status: 'success',

@@ -72,6 +72,9 @@ describe('ContactPersonForm', () => {
     fireEvent.submit(submitButton)
 
     expect(await screen.findByLabelText(/Location Type/)).toEqual(document.activeElement)
+    expect(screen.getByText('Country is required')).toBeInTheDocument()
+    expect(screen.getByText('Township is required')).toBeInTheDocument()
+    expect(fn).not.toHaveBeenCalledWith('createLocationInfo')
   })
 
   it('should fill with draft values when it is a draft', () => {
@@ -94,12 +97,16 @@ describe('ContactPersonForm', () => {
     const roomNumberInput: HTMLInputElement = screen.getByLabelText('Room Number')
     const postBoxInput: HTMLInputElement = screen.getByLabelText('Post Box')
     const postalCodeInput: HTMLInputElement = screen.getByLabelText('Postal Code')
-    const countryInput: HTMLSelectElement = screen.getByLabelText('Country')
+    const countryInput: HTMLSelectElement = screen.getByLabelText(/Country/, {
+      selector: '[name="country"]',
+    })
     const countrySubdivisionInput: HTMLSelectElement = screen.getByLabelText(
       'Country Subdivision (State/Divison)'
     )
     const districtInput: HTMLSelectElement = screen.getByLabelText('District')
-    const townshipInput: HTMLInputElement = screen.getByLabelText('Township')
+    const townshipInput: HTMLInputElement = screen.getByLabelText(/Township/, {
+      selector: '[name="town_name"]',
+    })
     const longitudeInput: HTMLInputElement = screen.getByLabelText('Longitude')
     const latitudeInput: HTMLInputElement = screen.getByLabelText('Latitude')
     const checkoutCounterDescriptionInput: HTMLInputElement = screen.getByLabelText(
@@ -135,7 +142,9 @@ describe('ContactPersonForm', () => {
       </TestWrapper>
     )
 
-    const countryInput: HTMLSelectElement = screen.getByLabelText('Country')
+    const countryInput: HTMLSelectElement = screen.getByLabelText(/Country/, {
+      selector: '[name="country"]',
+    })
     const countrySubdivisionInput: HTMLSelectElement = screen.getByLabelText(
       'Country Subdivision (State/Divison)'
     )
@@ -177,9 +186,17 @@ describe('ContactPersonForm', () => {
     )
 
     const locationTypeInput: HTMLSelectElement = screen.getByLabelText(/Location Type/)
+    const countryInput: HTMLSelectElement = screen.getByLabelText(/Country/, {
+      selector: '[name="country"]',
+    })
+    const townshipInput: HTMLInputElement = screen.getByLabelText(/Township/, {
+      selector: '[name="town_name"]',
+    })
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
 
     fireEvent.change(locationTypeInput, { target: { value: 'Virtual' } })
+    fireEvent.change(countryInput, { target: { value: 'Australia' } })
+    fireEvent.change(townshipInput, { target: { value: 'Perth' } })
     fireEvent.click(submitButton)
 
     await waitFor(() => expect(fn).toHaveBeenCalledWith('createLocationInfo'))

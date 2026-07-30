@@ -148,10 +148,14 @@ async function processAliasData (aliasData: RegistryAliasData): Promise<void> {
   const checkoutCounterReference = uuidv4().replace(/-/g, '')
 
   const qrImageBuffer = await generateQRImageForAlias(aliasData, checkoutCounterReference)
-  if (qrImageBuffer === null || qrImageBuffer === undefined) return
+  if (qrImageBuffer === null || qrImageBuffer === undefined) {
+    throw new Error(`QR generation failed for merchant ${aliasData.merchant_id}`)
+  }
 
   const qrImageS3Path = await uploadQRImage(aliasData.alias_value, qrImageBuffer)
-  if (qrImageS3Path === null || qrImageS3Path === undefined || qrImageS3Path === '') return
+  if (qrImageS3Path === null || qrImageS3Path === undefined || qrImageS3Path === '') {
+    throw new Error(`QR upload failed for merchant ${aliasData.merchant_id}`)
+  }
 
   await updateCheckoutCounter(
     aliasData.checkout_counter_id,

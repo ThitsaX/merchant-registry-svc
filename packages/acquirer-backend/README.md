@@ -59,6 +59,9 @@
 | **S3/Minio Configuration**               |                                      |                                                                                        |
 | `S3_ENDPOINT`                            | `localhost`                          | S3 or Minio server endpoint.                                                           |
 | `S3_PORT`                                | `9000`                               | Port for S3 or Minio server. `443` for AWS S3 with HTTPS.                              |
+| `S3_PUBLIC_ENDPOINT`                     | `S3_ENDPOINT`                        | Browser-facing S3 or Minio endpoint used to generate presigned URLs.                   |
+| `S3_PUBLIC_PORT`                         | `S3_PORT`                            | Browser-facing port used to generate presigned URLs.                                   |
+| `S3_PUBLIC_USE_SSL`                      | `S3_USE_SSL`                         | Whether browser-facing presigned URLs use HTTPS.                                       |
 | `S3_ACCESS_KEY`                          | `minioadmin`                         | Access key for S3 or Minio.                                                            |
 | `S3_SECRET_KEY`                          | `minioadmin`                         | Secret key for S3 or Minio.                                                            |
 | `S3_REGION`                              | `us-east-1`                          | Region for S3. Ignored by Minio.                                                       |

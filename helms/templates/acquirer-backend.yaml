@@ -1,0 +1,181 @@
+{{- $fullname := include "merchant-registry.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-acquirer-backend-deployment
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-backend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.acquirerBackend.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: acquirer-backend
+  template:
+    metadata:
+      labels:
+        {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-backend") | nindent 8 }}
+      {{- with .Values.acquirerBackend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.acquirerBackend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: acquirer-backend
+          image: "{{ .Values.acquirerBackend.image.repository }}:{{ .Values.acquirerBackend.image.tag }}"
+          imagePullPolicy: {{ .Values.acquirerBackend.image.pullPolicy }}
+          {{- with .Values.acquirerBackend.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.acquirerBackend.service.port }}
+          env:
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: {{ .Values.acquirerBackend.service.port | quote }}
+            - name: APP_URL
+              value: {{ .Values.app.backendUrl | quote }}
+            - name: FRONTEND_SET_PASSWORD_URL
+              value: {{ .Values.app.frontendSetPasswordUrl | quote }}
+            - name: JWT_EXPIRES_IN
+              value: {{ .Values.auth.jwtExpiresIn | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "auth.jwtSecret.name is required" .Values.auth.jwtSecret.name }}
+                  key: {{ required "auth.jwtSecret.key is required" .Values.auth.jwtSecret.key }}
+            - name: DB_HOST
+              value: {{ required "database.host is required" .Values.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.database.backendDatabase | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.database.username | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.passwordSecret.name is required" .Values.database.passwordSecret.name }}
+                  key: {{ required "database.passwordSecret.key is required" .Values.database.passwordSecret.key }}
+            - name: S3_ENDPOINT
+              value: {{ required "objectStorage.endpoint is required" .Values.objectStorage.endpoint | quote }}
+            - name: S3_PORT
+              value: {{ .Values.objectStorage.port | quote }}
+            - name: S3_USE_SSL
+              value: {{ .Values.objectStorage.useSSL | quote }}
+            - name: S3_PUBLIC_ENDPOINT
+              value: {{ .Values.objectStorage.publicEndpoint | quote }}
+            - name: S3_PUBLIC_PORT
+              value: {{ .Values.objectStorage.publicPort | quote }}
+            - name: S3_PUBLIC_USE_SSL
+              value: {{ .Values.objectStorage.publicUseSSL | quote }}
+            - name: S3_REGION
+              value: {{ .Values.objectStorage.region | quote }}
+            - name: S3_MERCHANT_BUCKET_NAME
+              value: {{ .Values.objectStorage.merchantBucket | quote }}
+            - name: S3_DFSP_LOGO_BUCKET_NAME
+              value: {{ .Values.objectStorage.dfspLogoBucket | quote }}
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "objectStorage.credentialsSecret.name is required" .Values.objectStorage.credentialsSecret.name }}
+                  key: {{ required "objectStorage.credentialsSecret.accessKeyKey is required" .Values.objectStorage.credentialsSecret.accessKeyKey }}
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.objectStorage.credentialsSecret.name }}
+                  key: {{ required "objectStorage.credentialsSecret.secretKeyKey is required" .Values.objectStorage.credentialsSecret.secretKeyKey }}
+            - name: REGISTRY_ORACLE_URL
+              value: {{ default (printf "http://%s-registry-oracle-clusterip-service:%v" $fullname .Values.registryOracle.service.port) .Values.registry.oracleUrl | quote }}
+            - name: REGISTRY_INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "registry.internalApiKeySecret.name is required" .Values.registry.internalApiKeySecret.name }}
+                  key: {{ required "registry.internalApiKeySecret.key is required" .Values.registry.internalApiKeySecret.key }}
+            - name: REGISTRY_HTTP_TIMEOUT_MS
+              value: {{ .Values.registry.httpTimeoutMs | quote }}
+            - name: REGISTRY_HTTP_RETRIES
+              value: {{ .Values.registry.httpRetries | quote }}
+            - name: RECAPTCHA_ENABLED
+              value: {{ .Values.recaptcha.enabled | quote }}
+            {{- if .Values.recaptcha.enabled }}
+            - name: RECAPTCHA_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "recaptcha.backendSecret.name is required when reCAPTCHA is enabled" .Values.recaptcha.backendSecret.name }}
+                  key: {{ required "recaptcha.backendSecret.key is required when reCAPTCHA is enabled" .Values.recaptcha.backendSecret.key }}
+            {{- end }}
+            - name: EMAIL_PROVIDER
+              value: {{ .Values.email.provider | quote }}
+            {{- if eq .Values.email.provider "sendgrid" }}
+            - name: EMAIL_FROM
+              value: {{ required "email.from is required when SendGrid is enabled" .Values.email.from | quote }}
+            - name: SENDGRID_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "email.sendgridApiKeySecret.name is required when SendGrid is enabled" .Values.email.sendgridApiKeySecret.name }}
+                  key: {{ required "email.sendgridApiKeySecret.key is required when SendGrid is enabled" .Values.email.sendgridApiKeySecret.key }}
+            {{- end }}
+            - name: EMVCO_MERCHANT_ACCOUNT_GUI
+              value: {{ .Values.emvco.merchantAccountGui | quote }}
+            {{- with .Values.acquirerBackend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /api/v1/health-check
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health-check
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health-check
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.acquirerBackend.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-acquirer-backend-clusterip-service
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-backend") | nindent 4 }}
+spec:
+  type: {{ .Values.acquirerBackend.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: acquirer-backend
+  ports:
+    - name: http
+      port: {{ .Values.acquirerBackend.service.port }}
+      targetPort: http

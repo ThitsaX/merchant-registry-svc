@@ -1,0 +1,110 @@
+name: Publish Helm chart
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      chart_version:
+        description: Helm chart version to publish
+        required: true
+        default: 1.1.0
+      app_version:
+        description: Merchant image version used by the chart
+        required: true
+        default: 1.1.6
+
+concurrency:
+  group: publish-helm-${{ github.event.release.tag_name || inputs.chart_version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release versions
+        id: version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_CHART_VERSION: ${{ inputs.chart_version }}
+          INPUT_APP_VERSION: ${{ inputs.app_version }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            chart_version="${RELEASE_TAG#v}"
+            app_version="$chart_version"
+          else
+            chart_version="${INPUT_CHART_VERSION#v}"
+            app_version="${INPUT_APP_VERSION#v}"
+          fi
+          version_pattern='^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'
+          [[ "$chart_version" =~ $version_pattern ]]
+          [[ "$app_version" =~ $version_pattern ]]
+          echo "chart=$chart_version" >> "$GITHUB_OUTPUT"
+          echo "app=$app_version" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare and validate chart
+        shell: bash
+        env:
+          CHART_VERSION: ${{ steps.version.outputs.chart }}
+          APP_VERSION: ${{ steps.version.outputs.app }}
+        run: |
+          set -euo pipefail
+          chart_source="$RUNNER_TEMP/merchant-registry"
+          cp -R helms "$chart_source"
+          sed -i -E "s/^([[:space:]]+tag: ).*/\1v${APP_VERSION}/" "$chart_source/values.yaml"
+          sed -i -E "s@(image: ghcr.io/thitsax/[^:]+):.*@\1:v${APP_VERSION}@" "$chart_source/Chart.yaml"
+          helm lint "$chart_source"
+          helm template merchant-registry "$chart_source" --namespace mojaloop >/dev/null
+          helm package "$chart_source" \
+            --version "$CHART_VERSION" \
+            --app-version "$APP_VERSION" \
+            --destination "$RUNNER_TEMP"
+
+      - name: Publish GitHub Pages Helm repository
+        shell: bash
+        env:
+          CHART_VERSION: ${{ steps.version.outputs.chart }}
+        run: |
+          set -euo pipefail
+          pages_dir="$RUNNER_TEMP/helm-pages"
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git worktree add -B gh-pages "$pages_dir" origin/gh-pages
+          else
+            git worktree add --detach "$pages_dir" HEAD
+            cd "$pages_dir"
+            git switch --orphan gh-pages
+            git rm -rf .
+          fi
+
+          cp "$RUNNER_TEMP/merchant-registry-${CHART_VERSION}.tgz" "$pages_dir/"
+          if [[ -f "$pages_dir/index.yaml" ]]; then
+            helm repo index "$pages_dir" \
+              --url https://thitsax.github.io/merchant-registry-svc \
+              --merge "$pages_dir/index.yaml"
+          else
+            helm repo index "$pages_dir" \
+              --url https://thitsax.github.io/merchant-registry-svc
+          fi
+          touch "$pages_dir/.nojekyll"
+
+          cd "$pages_dir"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .nojekyll index.yaml "merchant-registry-${CHART_VERSION}.tgz"
+          if git diff --cached --quiet; then
+            echo "Helm chart ${CHART_VERSION} is already published"
+            exit 0
+          fi
+          git commit -m "chore(helm): publish merchant-registry ${CHART_VERSION}"
+          git push origin HEAD:gh-pages

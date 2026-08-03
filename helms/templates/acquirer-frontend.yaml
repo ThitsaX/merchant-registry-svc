@@ -1,0 +1,102 @@
+{{- $fullname := include "merchant-registry.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-acquirer-frontend-deployment
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-frontend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.acquirerFrontend.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: acquirer-frontend
+  template:
+    metadata:
+      labels:
+        {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-frontend") | nindent 8 }}
+      {{- with .Values.acquirerFrontend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.acquirerFrontend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: acquirer-frontend
+          image: "{{ .Values.acquirerFrontend.image.repository }}:{{ .Values.acquirerFrontend.image.tag }}"
+          imagePullPolicy: {{ .Values.acquirerFrontend.image.pullPolicy }}
+          {{- with .Values.acquirerFrontend.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.acquirerFrontend.service.port }}
+          env:
+            - name: VITE_HOST
+              value: 0.0.0.0
+            - name: VITE_PORT
+              value: {{ .Values.acquirerFrontend.service.port | quote }}
+            - name: VITE_API_URL
+              value: {{ .Values.app.frontendApiUrl | quote }}
+            - name: VITE_RECAPTCHA_ENABLED
+              value: {{ .Values.recaptcha.enabled | quote }}
+            - name: VITE_RECAPTCHA_SITE_KEY
+              value: {{ .Values.recaptcha.frontendSiteKey | quote }}
+            {{- with .Values.acquirerFrontend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.acquirerFrontend.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-acquirer-frontend-clusterip-service
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-frontend") | nindent 4 }}
+spec:
+  type: {{ .Values.acquirerFrontend.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: acquirer-frontend
+  ports:
+    - name: http
+      port: {{ .Values.acquirerFrontend.service.port }}
+      targetPort: http

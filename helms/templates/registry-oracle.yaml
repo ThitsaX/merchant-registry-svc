@@ -1,0 +1,114 @@
+{{- $fullname := include "merchant-registry.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-registry-oracle-deployment
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "registry-oracle") | nindent 4 }}
+spec:
+  replicas: {{ .Values.registryOracle.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: registry-oracle
+  template:
+    metadata:
+      labels:
+        {{- include "merchant-registry.componentLabels" (dict "root" . "component" "registry-oracle") | nindent 8 }}
+      {{- with .Values.registryOracle.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.registryOracle.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: registry-oracle
+          image: "{{ .Values.registryOracle.image.repository }}:{{ .Values.registryOracle.image.tag }}"
+          imagePullPolicy: {{ .Values.registryOracle.image.pullPolicy }}
+          {{- with .Values.registryOracle.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.registryOracle.service.port }}
+          env:
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: {{ .Values.registryOracle.service.port | quote }}
+            - name: DB_HOST
+              value: {{ required "database.host is required" .Values.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.database.oracleDatabase | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.database.username | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.passwordSecret.name is required" .Values.database.passwordSecret.name }}
+                  key: {{ required "database.passwordSecret.key is required" .Values.database.passwordSecret.key }}
+            - name: REGISTRY_INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "registry.internalApiKeySecret.name is required" .Values.registry.internalApiKeySecret.name }}
+                  key: {{ required "registry.internalApiKeySecret.key is required" .Values.registry.internalApiKeySecret.key }}
+            {{- with .Values.registryOracle.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health-check
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /health-check
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health-check
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.registryOracle.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-registry-oracle-clusterip-service
+  labels:
+    {{- include "merchant-registry.componentLabels" (dict "root" . "component" "registry-oracle") | nindent 4 }}
+spec:
+  type: {{ .Values.registryOracle.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: registry-oracle
+  ports:
+    - name: http
+      port: {{ .Values.registryOracle.service.port }}
+      targetPort: http

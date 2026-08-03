@@ -1,42 +1,47 @@
-## Helm Charts Deployment
+# Merchant Registry Helm chart
 
-### Default Ingress DNS (add following records to the `/etc/hosts` file)
-   - www.acquirer-merchant.local
+This chart deploys the stateless merchant components:
 
-### Prerequisites
+- Acquirer backend
+- Acquirer frontend
+- Registry Oracle
 
-- Kubernetes cluster
-- Helm 3
-- Email is optional and defaults to `emailProvider: "none"`.
-  - To enable SendGrid, set `emailProvider: "sendgrid"`, `emailFrom`, and
-    `sendgridApiKey` in `./chart-acquirer-backend/values.yaml`.
+MySQL, object storage, and Kubernetes Secrets are intentionally external. This
+keeps production state lifecycle and credentials outside the application
+release. Local development can continue to use the repository's Docker Compose
+stack.
 
-- reCAPTCHA is disabled by default. To enable it, register for Google reCAPTCHA
-  v2 and add the ingress domain:
-  - https://www.google.com/recaptcha/admin/create
-  - Update the `./chart-acquirer-backend/values.yaml` file with the following values:
-    - `recaptchaEnabled: "true"`
-    - `recaptchaBackendSiteKey`
-  - Update the `./chart-acquirer-frontend/values.yaml` file with the following values:
-    - `recaptchaEnabled: "true"`
-    - `recaptchaFrontendSiteKey`
-
-### Deploying the Helm Charts
-
-1. Build Dependency Chart
+## Install
 
 ```bash
-helm dependency build <rootProject>/helms
+helm repo add thitsax https://thitsax.github.io/merchant-registry-svc
+helm repo update
+helm upgrade --install merchant-registry thitsax/merchant-registry \
+  --version 1.1.0 \
+  --namespace mojaloop \
+  --values values.yaml
 ```
 
-2. Install the Helm chart:
+At minimum, override:
 
-```bash
-helm install my-release <rootProject>/helms
-```
+- `database.host`, database names, username, and `database.passwordSecret`
+- `auth.jwtSecret`
+- `registry.internalApiKeySecret`
+- `objectStorage` endpoints and `credentialsSecret`
+- the three public URLs under `app`
 
+Email and reCAPTCHA remain optional. `email.provider: none` and
+`recaptcha.enabled: false` are safe defaults. Enabling SendGrid requires an
+existing Secret reference in `email.sendgridApiKeySecret`; enabling reCAPTCHA
+requires `recaptcha.backendSecret` and a frontend site key.
 
-### IMPORTANT NOTES:
+## Publish
 
-When updating ingress's host make sure to update the `apiUrl` of `./chart-acquirer-frontend/values.yaml` file too.
-Otherwise frontend will not be able to communicate with backend.
+Publishing is handled by `.github/workflows/publish-helm.yml`. A GitHub release
+publishes a matching chart and application version. The manual workflow is used
+when the chart and application versions intentionally differ, such as chart
+`1.1.0` deploying application images `1.1.6`.
+
+For the first publication only, configure GitHub Pages to deploy from the
+`gh-pages` branch at `/ (root)`. Subsequent workflow runs update the packaged
+charts and repository index on that branch.

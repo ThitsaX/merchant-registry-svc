@@ -1,107 +1,140 @@
-# Default values for helms.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-replicaCount: 1
-
-ingress:
-  enabled: true
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
-    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
-  hosts:
-    - host: "www.acquirer-merchant.local"
-      paths:
-        - path: /api/v1
-          pathType: Prefix
-          serviceName: acquirer-backend-clusterip-service
-          servicePort: 5555
-        - path: /participants
-          pathType: Prefix
-          serviceName: registry-oracle-clusterip-service
-          servicePort: 8888
-        - path: /
-          pathType: Prefix
-          serviceName: acquirer-frontend-clusterip-service
-          servicePort: 5173
-    - host: "s3.acquirer-merchant.local"
-      paths:
-        - path: /
-          pathType: Prefix
-          serviceName: minio-clusterip-service
-          servicePort: 5173
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+acquirerBackend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/thitsax/merchant-acquirer-backend
+    tag: v1.1.6
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5555
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  extraEnv: []
 
-podAnnotations: {}
+acquirerFrontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/thitsax/merchant-acquirer-frontend
+    tag: v1.1.6
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5173
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  extraEnv: []
 
-podSecurityContext: {}
-  # fsGroup: 2000
+registryOracle:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/thitsax/merchant-registry-oracle
+    tag: v1.1.6
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8888
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  extraEnv: []
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+database:
+  host: mysql
+  port: 3306
+  username: merchant_registry
+  backendDatabase: acquirer_db
+  oracleDatabase: registry_db
+  passwordSecret:
+    name: merchant-registry-db-secret
+    key: mysql-password
 
-service:
-  type: ClusterIP
-  port: 80
+auth:
+  jwtExpiresIn: 1d
+  jwtSecret:
+    name: merchant-registry-jwt-secret
+    key: secret
 
-# ingress:
-#   enabled: false
-#   className: ""
-#   annotations: {}
-#     # kubernetes.io/ingress.class: nginx
-#     # kubernetes.io/tls-acme: "true"
-#   hosts:
-#     - host: chart-example.local
-#       paths:
-#         - path: /
-#           pathType: ImplementationSpecific
-#   tls: []
-#   #  - secretName: chart-example-tls
-#   #    hosts:
-#   #      - chart-example.local
+registry:
+  # Empty means the in-chart Registry Oracle service.
+  oracleUrl: ""
+  httpTimeoutMs: 5000
+  httpRetries: 2
+  internalApiKeySecret:
+    name: merchant-registry-internal-api-key
+    key: secret
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+objectStorage:
+  endpoint: minio
+  port: 9000
+  useSSL: false
+  publicEndpoint: minio
+  publicPort: 9000
+  publicUseSSL: false
+  region: us-east-1
+  merchantBucket: merchant-documents
+  dfspLogoBucket: dfsp-logos
+  credentialsSecret:
+    name: merchant-registry-s3-secret
+    accessKeyKey: access-key
+    secretKeyKey: secret-key
 
-autoscaling:
+app:
+  backendUrl: http://localhost:5555
+  frontendSetPasswordUrl: http://localhost:5173/set-password
+  frontendApiUrl: http://localhost:5555/api/v1
+
+recaptcha:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  frontendSiteKey: ""
+  backendSecret:
+    name: ""
+    key: secret
+
+email:
+  # Supported values: none, sendgrid.
+  provider: none
+  from: ""
+  sendgridApiKeySecret:
+    name: ""
+    key: api-key
+
+emvco:
+  merchantAccountGui: org.mojaloop
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
 
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}

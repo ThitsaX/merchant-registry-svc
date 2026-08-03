@@ -12,7 +12,32 @@ entries:
       artifacthub.io/license: Apache-2.0
     apiVersion: v2
     appVersion: 1.1.6
-    created: "2026-08-03T07:50:15.60195782Z"
+    created: "2026-08-03T08:49:59.429439948Z"
+    description: Merchant registry, acquirer portal, and Mojaloop registry oracle
+    digest: a9edaa03ec98db8d491c49e499cd2cebec8f31b5ae535adf5deb6af36182691d
+    home: https://github.com/ThitsaX/merchant-registry-svc
+    kubeVersion: '>=1.24.0-0'
+    maintainers:
+    - name: ThitsaX
+    name: merchant-registry
+    sources:
+    - https://github.com/ThitsaX/merchant-registry-svc
+    type: application
+    urls:
+    - https://thitsax.github.io/merchant-registry-svc/merchant-registry-1.1.1.tgz
+    version: 1.1.1
+  - annotations:
+      artifacthub.io/images: |
+        - name: acquirer-backend
+          image: ghcr.io/thitsax/merchant-acquirer-backend:v1.1.6
+        - name: acquirer-frontend
+          image: ghcr.io/thitsax/merchant-acquirer-frontend:v1.1.6
+        - name: registry-oracle
+          image: ghcr.io/thitsax/merchant-registry-oracle:v1.1.6
+      artifacthub.io/license: Apache-2.0
+    apiVersion: v2
+    appVersion: 1.1.6
+    created: "2026-08-03T08:49:59.428638628Z"
     description: Merchant registry, acquirer portal, and Mojaloop registry oracle
     digest: 2dd6cf4894e9406014743273c4d27115348bd63d2793187a3d281dd1f517c5dd
     home: https://github.com/ThitsaX/merchant-registry-svc
@@ -26,4 +51,4 @@ entries:
     urls:
     - https://thitsax.github.io/merchant-registry-svc/merchant-registry-1.1.0.tgz
     version: 1.1.0
-generated: "2026-08-03T07:50:15.597452094Z"
+generated: "2026-08-03T08:49:59.420659691Z"

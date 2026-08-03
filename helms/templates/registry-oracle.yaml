@@ -9,12 +9,12 @@ spec:
   replicas: {{ .Values.registryOracle.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/component: registry-oracle
+      component: registry-oracle
   template:
     metadata:
       labels:
         {{- include "merchant-registry.componentLabels" (dict "root" . "component" "registry-oracle") | nindent 8 }}
+        component: registry-oracle
       {{- with .Values.registryOracle.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
@@ -106,8 +106,7 @@ metadata:
 spec:
   type: {{ .Values.registryOracle.service.type }}
   selector:
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: registry-oracle
+    component: registry-oracle
   ports:
     - name: http
       port: {{ .Values.registryOracle.service.port }}

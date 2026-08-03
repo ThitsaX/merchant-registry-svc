@@ -9,12 +9,12 @@ spec:
   replicas: {{ .Values.acquirerFrontend.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/component: acquirer-frontend
+      component: acquirer-frontend
   template:
     metadata:
       labels:
         {{- include "merchant-registry.componentLabels" (dict "root" . "component" "acquirer-frontend") | nindent 8 }}
+        component: acquirer-frontend
       {{- with .Values.acquirerFrontend.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
@@ -94,8 +94,7 @@ metadata:
 spec:
   type: {{ .Values.acquirerFrontend.service.type }}
   selector:
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: acquirer-frontend
+    component: acquirer-frontend
   ports:
     - name: http
       port: {{ .Values.acquirerFrontend.service.port }}

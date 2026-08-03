@@ -8,7 +8,7 @@ on:
       chart_version:
         description: Helm chart version to publish
         required: true
-        default: 1.1.0
+        default: 1.1.1
       app_version:
         description: Merchant image version used by the chart
         required: true

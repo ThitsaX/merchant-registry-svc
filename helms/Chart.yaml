@@ -2,7 +2,7 @@ apiVersion: v2
 name: merchant-registry
 description: Merchant registry, acquirer portal, and Mojaloop registry oracle
 type: application
-version: 1.1.0
+version: 1.1.1
 appVersion: "1.1.6"
 kubeVersion: ">=1.24.0-0"
 home: https://github.com/ThitsaX/merchant-registry-svc

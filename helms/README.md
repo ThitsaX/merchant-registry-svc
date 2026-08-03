@@ -17,7 +17,7 @@ stack.
 helm repo add thitsax https://thitsax.github.io/merchant-registry-svc
 helm repo update
 helm upgrade --install merchant-registry thitsax/merchant-registry \
-  --version 1.1.0 \
+  --version 1.1.1 \
   --namespace mojaloop \
   --values values.yaml
 ```
@@ -40,7 +40,7 @@ requires `recaptcha.backendSecret` and a frontend site key.
 Publishing is handled by `.github/workflows/publish-helm.yml`. A GitHub release
 publishes a matching chart and application version. The manual workflow is used
 when the chart and application versions intentionally differ, such as chart
-`1.1.0` deploying application images `1.1.6`.
+`1.1.1` deploying application images `1.1.6`.
 
 For the first publication only, configure GitHub Pages to deploy from the
 `gh-pages` branch at `/ (root)`. Subsequent workflow runs update the packaged

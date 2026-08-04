@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useRoutes } from 'react-router-dom'
+import { Navigate, useNavigate, useRoutes } from 'react-router-dom'
 import { PortalUserType } from 'shared-lib'
 
 import { getUserProfile } from '@/api/users'
 import { Layout } from '@/components/layout'
+import { AUTH_SESSION_EXPIRED_EVENT } from '@/lib/axiosInstance'
 import {
   AddNewUser,
   AliasGeneratedMerchantRecords,
@@ -26,8 +27,17 @@ import {
 } from '@/pages'
 
 const Routes = () => {
+  const navigate = useNavigate()
   const [redirectTarget, setRedirectTarget] = useState('/registry')
   const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const redirectToLogin = () => navigate('/login', { replace: true })
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, redirectToLogin)
+    return () =>
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, redirectToLogin)
+  }, [navigate])
 
   useEffect(() => {
     const fetchUserProfile = async () => {

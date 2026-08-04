@@ -168,6 +168,16 @@ export function useChangePassword() {
     },
     onError: error => {
       if (isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          toast({
+            title: 'Session Expired',
+            description:
+              'Sign in again using the latest temporary password issued by your administrator.',
+            status: 'warning',
+          })
+          return
+        }
+
         toast({
           title: 'Password Change Failed!',
           description: error.response?.data.message || FALLBACK_ERROR_MESSAGE,

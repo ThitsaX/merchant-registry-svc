@@ -1,9 +1,14 @@
+import { useRef, useState } from 'react'
 import {
   Box,
+  FormControl,
+  FormHelperText,
+  FormLabel,
   Grid,
   GridItem,
   Heading,
   HStack,
+  Input,
   Link,
   Modal,
   ModalBody,
@@ -12,6 +17,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Select,
   Stack,
   Text,
   useDisclosure,
@@ -21,7 +27,12 @@ import {
 
 import type { MerchantDetails } from '@/types/merchantDetails'
 import { formatLatitudeLongitude } from '@/utils'
-import { useMerchant } from '@/api/hooks/merchants'
+import {
+  useAddApprovedCheckoutCounter,
+  useMerchant,
+  useRetryApprovedCheckoutCounterRegistration,
+} from '@/api/hooks/merchants'
+import { useUserProfile } from '@/api/hooks/users'
 import { CustomButton, Skeleton } from '@/components/ui'
 import { DetailsItem } from '.'
 import QRCodeModal from './QRCodeModal'
@@ -50,8 +61,10 @@ export const GridItemShell = ({ children, ...props }: GridItemProps) => {
 
 export const MerchantInfo = ({
   merchantDetails,
+  canManageCheckoutCounters = false,
 }: {
   merchantDetails: MerchantDetails
+  canManageCheckoutCounters?: boolean
 }) => {
   const {
     dba_trading_name,
@@ -73,12 +86,70 @@ export const MerchantInfo = ({
   } = merchantDetails
 
   const businessLicense = business_licenses?.[0]
-  const checkoutCounter = checkout_counters?.[0]
+  const primaryCheckoutCounter = checkout_counters?.[0]
   const location = locations?.[0]
   const businessOwner = business_owners?.[0]
   const contactPerson = contact_persons?.[0]
 
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const [selectedQrCodeUrl, setSelectedQrCodeUrl] = useState<string | null>(null)
+  const [isAddingCounter, setIsAddingCounter] = useState(false)
+  const [counterDescription, setCounterDescription] = useState('')
+  const [counterAlias, setCounterAlias] = useState('')
+  const [counterLocationId, setCounterLocationId] = useState(
+    locations?.[0]?.id?.toString() ?? ''
+  )
+  const addCounter = useAddApprovedCheckoutCounter()
+  const retryCounter = useRetryApprovedCheckoutCounterRegistration()
+  const submissionLock = useRef(false)
+
+  const canAddCounter =
+    canManageCheckoutCounters &&
+    registration_status === 'Approved' &&
+    locations.length > 0 &&
+    checkout_counters.length < 50
+
+  const submitCounter = async () => {
+    const locationId = Number(counterLocationId)
+    if (
+      submissionLock.current ||
+      counterDescription.trim().length === 0 ||
+      !Number.isInteger(locationId) ||
+      locationId < 1
+    ) {
+      return
+    }
+
+    submissionLock.current = true
+    try {
+      await addCounter.mutateAsync({
+        merchantId: merchantDetails.id,
+        idempotencyKey: crypto.randomUUID(),
+        data: {
+          location_id: locationId,
+          description: counterDescription.trim(),
+          ...(counterAlias.trim().length > 0
+            ? { alias_value: counterAlias.trim() }
+            : {}),
+        },
+      })
+      setCounterDescription('')
+      setCounterAlias('')
+      setIsAddingCounter(false)
+    } finally {
+      submissionLock.current = false
+    }
+  }
+
+  const openQrCode = (qrCodeUrl: string) => {
+    setSelectedQrCodeUrl(qrCodeUrl)
+    onOpen()
+  }
+
+  const closeQrCode = () => {
+    onClose()
+    setSelectedQrCodeUrl(null)
+  }
 
   return (
     <>
@@ -114,8 +185,8 @@ export const MerchantInfo = ({
             <DetailsItem label='LEI' value={lei || 'N/A'} />
 
             <DetailsItem
-              label='Payinto Account'
-              value={checkoutCounter?.alias_value || 'N/A'}
+              label='Primary Payinto Account'
+              value={primaryCheckoutCounter?.alias_value || 'N/A'}
             />
 
             <DetailsItem label='Number of Employee' value={employees_num || 'N/A'} />
@@ -325,22 +396,156 @@ export const MerchantInfo = ({
           <SubHeading>Checkout Information</SubHeading>
 
           <Stack spacing='3'>
-            <DetailsItem
-              label='Counter Description'
-              value={checkoutCounter?.description || 'N/A'}
-            />
+            {checkout_counters?.length ? (
+              checkout_counters.map((counter, index) => (
+                <Stack
+                  key={counter.id}
+                  spacing='2'
+                  borderBottom={index < checkout_counters.length - 1 ? '1px' : undefined}
+                  borderColor='gray.200'
+                  pb={index < checkout_counters.length - 1 ? '3' : undefined}
+                  data-testid='checkout-counter-information'
+                >
+                  <Text fontSize='sm' fontWeight='semibold'>
+                    Counter {counter.counter_number ?? index + 1}
+                  </Text>
+                  <DetailsItem
+                    label='Description'
+                    value={counter.description || 'N/A'}
+                  />
+                  <DetailsItem
+                    label='Location'
+                    value={
+                      locations.find(item => item.id === counter.checkout_location?.id)
+                        ?.town_name || 'N/A'
+                    }
+                  />
+                  <DetailsItem label='Alias' value={counter.alias_value || 'Pending'} />
+                  {counter.qr_code_link && (
+                    <CustomButton
+                      alignSelf='start'
+                      colorVariant='info'
+                      onClick={() => {
+                        if (counter.qr_code_link) openQrCode(counter.qr_code_link)
+                      }}
+                    >
+                      View QR Code
+                    </CustomButton>
+                  )}
+                  {!counter.qr_code_link && canManageCheckoutCounters && (
+                    <CustomButton
+                      alignSelf='start'
+                      colorVariant='accent-outline'
+                      isDisabled={retryCounter.isPending}
+                      isLoading={
+                        retryCounter.isPending &&
+                        retryCounter.variables?.counterId === counter.id
+                      }
+                      onClick={() =>
+                        retryCounter.mutate({
+                          merchantId: merchantDetails.id,
+                          counterId: counter.id,
+                        })
+                      }
+                    >
+                      Retry Registration
+                    </CustomButton>
+                  )}
+                </Stack>
+              ))
+            ) : (
+              <DetailsItem label='Counters' value='N/A' />
+            )}
 
-            {checkoutCounter?.qr_code_link && (
-              <>
-                <CustomButton alignSelf='start' colorVariant='info' onClick={onOpen}>
-                  View QR Code
-                </CustomButton>
-                <QRCodeModal
-                  isOpen={isOpen}
-                  onClose={onClose}
-                  qrCodeUrl={checkoutCounter?.qr_code_link}
-                />
-              </>
+            {canAddCounter && !isAddingCounter && (
+              <CustomButton
+                alignSelf='start'
+                colorVariant='accent-outline'
+                onClick={() => setIsAddingCounter(true)}
+              >
+                Add Checkout Counter
+              </CustomButton>
+            )}
+
+            {canAddCounter && isAddingCounter && (
+              <Stack
+                as='form'
+                spacing='3'
+                borderTop='1px'
+                borderColor='gray.200'
+                pt='3'
+                onSubmit={event => {
+                  event.preventDefault()
+                  void submitCounter()
+                }}
+              >
+                <FormControl isRequired>
+                  <FormLabel fontSize='sm'>Merchant Location</FormLabel>
+                  <Select
+                    value={counterLocationId}
+                    onChange={event => setCounterLocationId(event.target.value)}
+                  >
+                    {locations.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.town_name || item.country || 'Location'} (#{item.id})
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel fontSize='sm'>Counter Description</FormLabel>
+                  <Input
+                    value={counterDescription}
+                    maxLength={255}
+                    placeholder='e.g. Express checkout'
+                    onChange={event => setCounterDescription(event.target.value)}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel fontSize='sm'>Custom Payinto Alias</FormLabel>
+                  <Input
+                    value={counterAlias}
+                    maxLength={32}
+                    pattern='[A-Za-z0-9_-]+'
+                    placeholder='Optional'
+                    onChange={event => setCounterAlias(event.target.value)}
+                  />
+                  <FormHelperText>
+                    Leave blank to generate the next alias from the primary Payinto ID.
+                  </FormHelperText>
+                </FormControl>
+
+                <HStack>
+                  <CustomButton
+                    type='submit'
+                    isLoading={addCounter.isPending}
+                    isDisabled={
+                      addCounter.isPending ||
+                      counterDescription.trim().length === 0 ||
+                      counterLocationId.length === 0
+                    }
+                  >
+                    Add and Generate QR
+                  </CustomButton>
+                  <CustomButton
+                    colorVariant='accent-outline'
+                    isDisabled={addCounter.isPending}
+                    onClick={() => setIsAddingCounter(false)}
+                  >
+                    Cancel
+                  </CustomButton>
+                </HStack>
+              </Stack>
+            )}
+
+            {selectedQrCodeUrl && (
+              <QRCodeModal
+                isOpen={isOpen}
+                onClose={closeQrCode}
+                qrCodeUrl={selectedQrCodeUrl}
+              />
             )}
           </Stack>
         </GridItemShell>
@@ -355,6 +560,9 @@ const MerchantInformationModal = ({
   selectedMerchantId,
 }: MerchantInformationModalProps) => {
   const merchant = useMerchant(selectedMerchantId)
+  const userProfile = useUserProfile()
+  const canManageCheckoutCounters =
+    userProfile.data?.role.permissions.includes('Edit Merchants') ?? false
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} scrollBehavior='inside'>
@@ -376,7 +584,12 @@ const MerchantInformationModal = ({
             </HStack>
           )}
 
-          {merchant.isSuccess && <MerchantInfo merchantDetails={merchant.data} />}
+          {merchant.isSuccess && (
+            <MerchantInfo
+              merchantDetails={merchant.data}
+              canManageCheckoutCounters={canManageCheckoutCounters}
+            />
+          )}
         </ModalBody>
 
         <ModalFooter>

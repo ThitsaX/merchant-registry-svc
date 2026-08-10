@@ -82,6 +82,15 @@ export function testPutMerchantStatusApprove (app: Application): void {
       .field('license_number', '123456789')
     merchantId = res4.body.data.id
 
+    const merchant = await AppDataSource.manager.findOneByOrFail(MerchantEntity, {
+      id: merchantId
+    })
+    await AppDataSource.manager.save(CheckoutCounterEntity, {
+      merchant,
+      counter_number: 2,
+      description: 'Secondary checkout counter'
+    })
+
     await request(app)
       .put(`/api/v1/merchants/${merchantId}/ready-to-review`)
       .set('Authorization', `Bearer ${makerToken}`)
@@ -104,12 +113,9 @@ export function testPutMerchantStatusApprove (app: Application): void {
 
   afterAll(async () => {
     // Clean up
-    const checkoutCounter = await AppDataSource.manager.findOne(CheckoutCounterEntity, {
-      where: { merchant: { id: merchantId } }
+    await AppDataSource.manager.delete(CheckoutCounterEntity, {
+      merchant: { id: merchantId }
     })
-    if (checkoutCounter !== null) {
-      await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)
-    }
     await AppDataSource.manager.delete(MerchantEntity, merchantId)
     await AppDataSource.manager.delete(MerchantEntity, nonReadyMerchantId)
   })
@@ -207,11 +213,19 @@ export function testPutMerchantStatusApprove (app: Application): void {
     expect(res.statusCode).toEqual(200)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('"Waiting For Alias Generation" Status Updated for multiple merchants')
-    expect(registerMerchants).toHaveBeenCalledWith([
+    const registryPayload = registerMerchants.mock.calls[0][0]
+    expect(registryPayload).toHaveLength(2)
+    expect(registryPayload).toEqual(expect.arrayContaining([
       expect.objectContaining({
         merchant_id: merchantId,
         alias_value: 'APPROVAL-ALIAS-55'
+      }),
+      expect.objectContaining({
+        merchant_id: merchantId,
+        checkout_counter_number: 2,
+        alias_stem: 'APPROVAL-ALIAS-55',
+        alias_value: undefined
       })
-    ])
+    ]))
   })
 }

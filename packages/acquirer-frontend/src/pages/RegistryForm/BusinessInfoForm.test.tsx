@@ -140,7 +140,9 @@ describe('BusinessInfoForm', () => {
 
     const dbaNameInput: HTMLInputElement = screen.getByLabelText(/Doing Business As Name/)
     const registeredNameInput: HTMLInputElement = screen.getByLabelText(/Registered Name/)
-    const customAliasInput: HTMLInputElement = screen.getByLabelText(/Custom Merchant Alias/)
+    const customAliasInput: HTMLInputElement = screen.getByLabelText(
+      /Primary Checkout Counter Alias/
+    )
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
     const monthlyTurnOverInput: HTMLInputElement =

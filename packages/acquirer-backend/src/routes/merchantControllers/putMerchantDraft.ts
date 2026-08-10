@@ -20,7 +20,10 @@ import { uploadMerchantDocument } from '../../services/S3Client'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
-import { saveRequestedMerchantAlias } from '../../services/merchantAlias'
+import {
+  isRequestedMerchantAliasAvailable,
+  saveRequestedMerchantAlias
+} from '../../services/merchantAlias'
 /**
  * @openapi
  * /merchants/{id}/draft:
@@ -224,6 +227,47 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     merchant.registration_status !== MerchantRegistrationStatus.REVERTED) {
     return res.status(422).send({
       message: `Merchant is not in Draft Status. Current Status: ${merchant.registration_status}`
+    })
+  }
+
+  const primaryCheckoutCounter = [...merchant.checkout_counters]
+    .sort((left, right) => {
+      const counterNumberDifference = left.counter_number - right.counter_number
+      return counterNumberDifference !== 0
+        ? counterNumberDifference
+        : left.id - right.id
+    })[0]
+
+  try {
+    const aliasAvailable = await isRequestedMerchantAliasAvailable(
+      req.body.payinto_alias,
+      primaryCheckoutCounter === undefined
+        ? undefined
+        : {
+            merchantId: merchant.id,
+            checkoutCounterId: primaryCheckoutCounter.id
+          }
+    )
+    if (!aliasAvailable) {
+      const aliasValue = req.body.payinto_alias.trim()
+      await audit(
+        AuditActionType.UPDATE,
+        AuditTrasactionStatus.FAILURE,
+        'putMerchantDraft',
+        `PayInto alias already registered: ${aliasValue}`,
+        'MerchantEntity',
+        {}, { payinto_alias: aliasValue }, portalUser
+      )
+      return res.status(409).send({
+        message: `PayInto alias "${aliasValue}" is already registered`,
+        field: 'payinto_alias'
+      })
+    }
+  } catch (error) {
+    logger.error('Unable to verify PayInto alias availability: %o', error)
+    return res.status(503).send({
+      message: 'Unable to verify PayInto alias availability. Please try again.',
+      field: 'payinto_alias'
     })
   }
 

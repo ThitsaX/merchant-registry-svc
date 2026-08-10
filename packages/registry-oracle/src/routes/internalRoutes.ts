@@ -8,6 +8,7 @@ import {
 import {
   type MerchantData,
   InvalidMerchantAliasError,
+  isMerchantAliasAvailable,
   MerchantAliasConflictError,
   registerMerchants
 } from '../services/registerMerchant'
@@ -18,6 +19,36 @@ import { parseMerchantAlias } from 'shared-lib'
 const router = express.Router()
 
 router.use('/internal/v1', authenticateInternal)
+
+function readAliasOwner (req: Request, res: Response): {
+  merchantId: number
+  checkoutCounterId: number
+} | null | undefined {
+  const merchantIdValue = req.query.merchantId
+  const checkoutCounterIdValue = req.query.checkoutCounterId
+
+  if (merchantIdValue === undefined && checkoutCounterIdValue === undefined) return undefined
+  if (typeof merchantIdValue !== 'string' || typeof checkoutCounterIdValue !== 'string') {
+    res.status(400).send({
+      message: 'merchantId and checkoutCounterId must be provided together'
+    })
+    return null
+  }
+
+  const merchantId = Number(merchantIdValue)
+  const checkoutCounterId = Number(checkoutCounterIdValue)
+  if (
+    !Number.isInteger(merchantId) || merchantId < 1 ||
+    !Number.isInteger(checkoutCounterId) || checkoutCounterId < 1
+  ) {
+    res.status(400).send({
+      message: 'merchantId and checkoutCounterId must be positive integers'
+    })
+    return null
+  }
+
+  return { merchantId, checkoutCounterId }
+}
 
 function readIdempotencyKey (req: Request, res: Response): string | undefined {
   const idempotencyKey = req.header('idempotency-key')
@@ -33,6 +64,8 @@ function isMerchantData (value: unknown): value is MerchantData {
   const merchant = value as Partial<MerchantData>
   return Number.isInteger(merchant.merchant_id) &&
     (merchant.checkout_counter_id === undefined || Number.isInteger(merchant.checkout_counter_id)) &&
+    (merchant.checkout_counter_number === undefined ||
+      (Number.isInteger(merchant.checkout_counter_number) && merchant.checkout_counter_number > 0)) &&
     typeof merchant.fspId === 'string' &&
     merchant.fspId.length > 0 &&
     typeof merchant.dfsp_name === 'string' &&
@@ -42,6 +75,13 @@ function isMerchantData (value: unknown): value is MerchantData {
     typeof merchant.currency_code.iso_code === 'string' &&
     merchant.currency_code.iso_code.length > 0 &&
     (merchant.lei === undefined || typeof merchant.lei === 'string') &&
+    (
+      merchant.alias_stem === undefined ||
+      (
+        typeof merchant.alias_stem === 'string' &&
+        parseMerchantAlias(merchant.alias_stem.trim()) !== null
+      )
+    ) &&
     (
       merchant.alias_value === undefined ||
       (
@@ -91,6 +131,29 @@ router.post('/internal/v1/merchants/registrations', async (req: Request, res: Re
     )
     res.setHeader('Idempotency-Replayed', String(result.replayed))
     res.status(result.statusCode).send({ data: result.data })
+  } catch (error) {
+    handleError(error, res)
+  }
+})
+
+router.get('/internal/v1/merchant-aliases/:aliasValue/availability', async (req: Request, res: Response) => {
+  const aliasValue = parseMerchantAlias(req.params.aliasValue.trim())
+  if (aliasValue === null) {
+    res.status(400).send({ message: 'A valid merchant alias is required' })
+    return
+  }
+
+  const owner = readAliasOwner(req, res)
+  if (owner === null) return
+
+  try {
+    const available = await isMerchantAliasAvailable(aliasValue, owner)
+    res.status(200).send({
+      data: {
+        alias_value: aliasValue,
+        available
+      }
+    })
   } catch (error) {
     handleError(error, res)
   }

@@ -1,12 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { type Response } from 'express'
 import { QueryFailedError } from 'typeorm'
-import * as z from 'zod'
 import { AppDataSource } from '../../database/dataSource'
 import { MerchantEntity } from '../../entity/MerchantEntity'
 import { MerchantLocationEntity } from '../../entity/MerchantLocationEntity'
 import logger from '../../services/logger'
-import { CheckoutCounterEntity } from '../../entity/CheckoutCounterEntity'
 
 import {
   MerchantLocationSubmitDataSchema
@@ -15,6 +13,10 @@ import { audit } from '../../utils/audit'
 import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
+import {
+  InvalidCheckoutCounterError,
+  syncCheckoutCounters
+} from '../../services/checkoutCounters'
 
 /**
  * @openapi
@@ -103,6 +105,29 @@ import { gleifService } from '../../services/GLEIFService'
  *               longitude:
  *                 type: string
  *                 example: "74.0060"
+ *               checkout_counters:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 50
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - description
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       description: Existing checkout-counter ID
+ *                     description:
+ *                       type: string
+ *                       example: "Main till"
+ *                     alias_value:
+ *                       type: string
+ *                       description: Optional globally unique custom alias
+ *                       example: "SHOP-123-MAIN"
+ *               checkout_description:
+ *                 type: string
+ *                 deprecated: true
+ *                 description: Legacy single-counter description
  *     responses:
  *       200:
  *         description: Merchant Location Updated
@@ -139,16 +164,18 @@ export async function putMerchantLocation (req: AuthRequest, res: Response) {
   }
 
   const locationData = req.body
-
-  // Validate the Request Body
-  try {
-    MerchantLocationSubmitDataSchema.parse(locationData)
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      logger.error('Merchant Location Validation error: %o', err.issues.map(issue => issue.message))
-      return res.status(422).send({ message: err.issues.map(issue => issue.message) })
-    }
+  const validationResult = MerchantLocationSubmitDataSchema.safeParse(locationData)
+  if (!validationResult.success) {
+    const issues = validationResult.error.issues.map(issue => issue.message)
+    logger.error('Merchant Location Validation error: %o', issues)
+    return res.status(422).send({ message: issues })
   }
+
+  const {
+    checkout_counters: submittedCounters,
+    checkout_description: legacyCheckoutDescription,
+    ...validatedLocationData
+  } = validationResult.data
 
   // Find merchant
   const merchantRepository = AppDataSource.getRepository(MerchantEntity)
@@ -157,6 +184,8 @@ export async function putMerchantLocation (req: AuthRequest, res: Response) {
     relations: [
       'locations',
       'locations.checkout_counters',
+      'checkout_counters',
+      'checkout_counters.checkout_location',
       'dfsps'
     ]
   })
@@ -195,13 +224,13 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   if (merchant.lei !== null && merchant.lei !== undefined && merchant.lei !== '') {
     const validationResult = await gleifService.validateLocation(
       merchant.lei,
-      locationData.street_name ?? '',
-      locationData.building_number ?? '',
-      locationData.postal_code ?? '',
-      locationData.town_name ?? '',
-      locationData.country_subdivision ?? '',
-      locationData.country ?? '',
-      locationData.address_line ?? ''
+      validatedLocationData.street_name ?? '',
+      validatedLocationData.building_number ?? '',
+      validatedLocationData.postal_code ?? '',
+      validatedLocationData.town_name ?? '',
+      validatedLocationData.country_subdivision ?? '',
+      validatedLocationData.country ?? '',
+      validatedLocationData.address_line ?? ''
     )
 
     if (!validationResult.isValid) {
@@ -220,38 +249,45 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     }
   }
 
-  if (location.checkout_counters.length !== 0) {
-    // Assuming one checkoutout counter, one location, and one merchant
-    const checkoutDescription: string = req.body.checkout_description
-    if (checkoutDescription !== null && checkoutDescription !== '') {
-      location.checkout_counters[0].description = req.body.checkout_description
-
-      try {
-        await AppDataSource.getRepository(CheckoutCounterEntity).update(
-          location.checkout_counters[0].id,
-          location.checkout_counters[0]
-        )
-      } catch (err)/* istanbul ignore next */ {
-        if (err instanceof QueryFailedError) {
-          logger.error('Query Failed: %o', err.message)
-          return res.status(500).send({ message: err.message })
-        }
-      }
+  const legacyDescription = legacyCheckoutDescription?.trim()
+  const existingCounterInputs = (location.checkout_counters ?? []).map((counter, index) => {
+    const existingDescription = counter.description?.trim()
+    return {
+      id: counter.id,
+      description: index === 0 && legacyDescription !== undefined && legacyDescription.length > 0
+        ? legacyDescription
+        : (
+            existingDescription !== undefined && existingDescription.length > 0
+              ? existingDescription
+              : `Checkout counter ${index + 1}`
+          )
     }
-  }
-
-  locationData.checkout_description = undefined
+  })
+  const counterInputs = submittedCounters ?? (
+    existingCounterInputs.length > 0
+      ? existingCounterInputs
+      : [{
+          description: legacyDescription !== undefined && legacyDescription.length > 0
+            ? legacyDescription
+            : 'Main checkout counter'
+        }]
+  )
 
   try {
-    await AppDataSource.getRepository(MerchantLocationEntity).update(
-      location.id,
-      locationData
-    )
+    await AppDataSource.transaction(async manager => {
+      Object.assign(location, validatedLocationData)
+      const savedLocation = await manager.save(MerchantLocationEntity, location)
+      await syncCheckoutCounters(manager, merchant, savedLocation, counterInputs)
+    })
   } catch (err)/* istanbul ignore next */ {
+    if (err instanceof InvalidCheckoutCounterError) {
+      return res.status(422).send({ message: err.message })
+    }
     if (err instanceof QueryFailedError) {
       logger.error('Query Failed: %o', err.message)
       return res.status(500).send({ message: err.message })
     }
+    throw err
   }
 
   await audit(

@@ -48,6 +48,7 @@ import { testPostUserLogout } from './PostUserLogout.tests'
 import { testGetCountryCode } from './GetCountryCode.tests'
 import { testGetHubAudits } from './GetHubAudits.tests'
 import { testPutUserStatus } from './PutUserStatus.tests'
+import { testPostApprovedCheckoutCounter } from './PostApprovedCheckoutCounter.tests'
 
 jest.mock('@sendgrid/mail', () => ({
   setApiKey: jest.fn(),
@@ -62,7 +63,8 @@ jest.mock('@sendgrid/mail', () => ({
 
 jest.mock('../../src/services/registryOracleClient', () => ({
   registerMerchantsWithRegistry: jest.fn().mockResolvedValue(undefined),
-  registerDFSPWithRegistry: jest.fn().mockResolvedValue(undefined)
+  registerDFSPWithRegistry: jest.fn().mockResolvedValue(undefined),
+  isMerchantAliasAvailableInRegistry: jest.fn().mockResolvedValue(true)
 }))
 
 logger.silent = true
@@ -93,6 +95,10 @@ describe('E2E API Tests', () => {
 
   describe('GET Merchant Checkout Counters API Tests', () => {
     testGetCheckoutCounters(app)
+  })
+
+  describe('POST Approved Merchant Checkout Counter API Tests', () => {
+    testPostApprovedCheckoutCounter(app)
   })
 
   describe('POST Merchant Draft API Tests', () => {

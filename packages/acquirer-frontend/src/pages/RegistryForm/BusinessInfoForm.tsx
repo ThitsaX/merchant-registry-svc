@@ -240,7 +240,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             name='payinto_alias'
             register={register}
             errors={errors}
-            label='Custom Merchant Alias (Optional)'
+            label='Primary Checkout Counter Alias (Optional)'
             placeholder='Example: LBR-MER-00012345'
             inputProps={{ maxLength: MERCHANT_ALIAS_MAX_LENGTH }}
           />

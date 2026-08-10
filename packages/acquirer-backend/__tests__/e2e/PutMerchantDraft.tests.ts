@@ -11,6 +11,7 @@ import { PortalPermissionEntity } from '../../src/entity/PortalPermissionEntity'
 import { PermissionsEnum } from '../../src/types/permissions'
 import { PortalRoleEntity } from '../../src/entity/PortalRoleEntity'
 import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
+import { isMerchantAliasAvailableInRegistry } from '../../src/services/registryOracleClient'
 
 export function testPutMerchantDraft (app: Application): void {
   let token = ''
@@ -164,6 +165,21 @@ export function testPutMerchantDraft (app: Application): void {
 
     // Clean up
     await AppDataSource.manager.update(MerchantEntity, merchantId, { registration_status: MerchantRegistrationStatus.DRAFT })
+  })
+
+  it('should reject an update using an alias already registered to another merchant', async () => {
+    jest.mocked(isMerchantAliasAvailableInRegistry).mockResolvedValueOnce(false)
+
+    const res = await request(app)
+      .put(`/api/v1/merchants/${merchantId}/draft`)
+      .set('Authorization', `Bearer ${token}`)
+      .field('payinto_alias', 'LBR-MER-EXISTING')
+
+    expect(res.statusCode).toEqual(409)
+    expect(res.body).toEqual({
+      message: 'PayInto alias "LBR-MER-EXISTING" is already registered',
+      field: 'payinto_alias'
+    })
   })
 
   it('should respond with 200 when updating merchant without license_document', async () => {

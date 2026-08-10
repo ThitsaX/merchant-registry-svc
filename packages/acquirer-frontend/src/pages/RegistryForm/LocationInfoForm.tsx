@@ -1,8 +1,21 @@
 import { useEffect } from 'react'
-import { Box, Stack, useToast } from '@chakra-ui/react'
+import {
+  Box,
+  FormControl,
+  FormErrorMessage,
+  FormLabel,
+  HStack,
+  Input,
+  Stack,
+  Text,
+  useToast,
+} from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { MerchantLocationType } from 'shared-lib'
+import { useFieldArray, useForm } from 'react-hook-form'
+import {
+  MERCHANT_ALIAS_MAX_LENGTH,
+  MerchantLocationType,
+} from 'shared-lib'
 
 import { locationInfoSchema, type LocationInfoForm } from '@/lib/validations/registry'
 import {
@@ -18,14 +31,6 @@ import { CustomButton, FloatingSpinner } from '@/components/ui'
 import { AddressFormFields, FormInput, FormSelect } from '@/components/form'
 import GridShell from './GridShell'
 
-export function removePropFromObj<TObj extends object, TKey extends keyof TObj>(
-  obj: TObj,
-  key: TKey
-) {
-  const filteredEntries = Object.entries(obj).filter(value => value[0] !== key)
-  return Object.fromEntries(filteredEntries) as Omit<TObj, TKey>
-}
-
 const LOCATION_TYPES = Object.entries(MerchantLocationType).map(([, label]) => ({
   value: label,
   label,
@@ -39,6 +44,7 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
   const toast = useToast()
 
   const {
+    control,
     register,
     watch,
     formState: { errors },
@@ -47,6 +53,19 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     handleSubmit,
   } = useForm<LocationInfoForm>({
     resolver: zodResolver(locationInfoSchema),
+    defaultValues: {
+      checkout_counters: [{ counter_number: 1, description: '', alias_value: '' }],
+    },
+  })
+  const {
+    fields: checkoutCounters,
+    append: appendCheckoutCounter,
+    remove: removeCheckoutCounter,
+    replace: replaceCheckoutCounters,
+  } = useFieldArray({
+    control,
+    name: 'checkout_counters',
+    keyName: 'fieldKey',
   })
 
   const watchedCountry = watch('country') || ''
@@ -103,8 +122,6 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
       latitude,
     } = draftData.locations[0]
 
-    const checkoutCounter = draftData.checkout_counters?.[0]
-
     location_type && setValue('location_type', location_type)
     web_url && setValue('web_url', web_url)
     department && setValue('department', department)
@@ -122,9 +139,20 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     country_subdivision && setValue('country_subdivision', country_subdivision)
     longitude && setValue('longitude', longitude)
     latitude && setValue('latitude', latitude)
-    checkoutCounter?.description &&
-      setValue('checkout_description', checkoutCounter.description)
-  }, [draftData, setValue])
+    const locationCounters = draftData.checkout_counters?.filter(counter =>
+      counter.checkout_location == null ||
+      counter.checkout_location.id === draftData.locations[0].id
+    )
+    const counters = locationCounters?.length
+      ? locationCounters.map((counter, index) => ({
+          id: counter.id,
+          counter_number: counter.counter_number ?? index + 1,
+          description: counter.description || `Checkout counter ${index + 1}`,
+          alias_value: counter.alias_value || '',
+        }))
+      : [{ counter_number: 1, description: '', alias_value: '' }]
+    replaceCheckoutCounters(counters)
+  }, [draftData, replaceCheckoutCounters, setValue])
 
   const onSubmit = (values: LocationInfoForm) => {
     if (!merchantId) {
@@ -136,9 +164,8 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
 
     const existingLocationId = draft.data?.locations?.[0]?.id
     if (existingLocationId) {
-      const params = removePropFromObj(values, 'checkout_description')
       updateLocationInfo.mutate({
-        params,
+        params: values,
         merchantId,
         locationId: existingLocationId,
       })
@@ -152,7 +179,11 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     const firstError = Object.keys(errors)[0] as keyof LocationInfoForm
 
     if (firstError) {
-      setFocus(firstError)
+      setFocus(
+        firstError === 'checkout_counters'
+          ? 'checkout_counters.0.description'
+          : firstError
+      )
     }
   }, [errors, setFocus])
 
@@ -200,15 +231,105 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
           requireQrLocationFields
         />
 
-        <GridShell justifyItems='center' pb={{ base: '8', sm: '12' }}>
-          <FormInput
-            name='checkout_description'
-            register={register}
-            errors={errors}
-            label='Checkout Counter Description'
-            placeholder='Checkout Counter Description'
-          />
-        </GridShell>
+        <Stack spacing='4' pb={{ base: '8', sm: '12' }}>
+          <HStack justify='space-between'>
+            <Text fontWeight='semibold'>Checkout Counters</Text>
+            <CustomButton
+              colorVariant='accent-outline'
+              onClick={() => {
+                const nextCounterNumber = Math.max(
+                  0,
+                  ...checkoutCounters.map((item, itemIndex) =>
+                    item.counter_number ?? itemIndex + 1
+                  )
+                ) + 1
+                appendCheckoutCounter({
+                  counter_number: nextCounterNumber,
+                  description: '',
+                  alias_value: '',
+                })
+              }}
+              isDisabled={checkoutCounters.length >= 50}
+            >
+              Add counter
+            </CustomButton>
+          </HStack>
+
+          {checkoutCounters.map((counter, index) => {
+            const counterErrors = errors.checkout_counters?.[index]
+            const descriptionId = `checkout-counter-${index}-description`
+            const aliasId = `checkout-counter-${index}-alias`
+            return (
+              <Stack
+                key={counter.fieldKey}
+                spacing='3'
+                border='1px'
+                borderColor='gray.200'
+                rounded='md'
+                p='4'
+                data-testid='checkout-counter-fields'
+              >
+                <HStack justify='space-between'>
+                  <Text fontSize='sm' fontWeight='semibold'>
+                    Counter {counter.counter_number ?? index + 1}
+                  </Text>
+                  {checkoutCounters.length > 1 &&
+                    (counter.counter_number ?? index + 1) !== 1 && (
+                    <CustomButton
+                      colorVariant='danger'
+                      onClick={() => removeCheckoutCounter(index)}
+                      aria-label={`Remove checkout counter ${
+                        counter.counter_number ?? index + 1
+                      }`}
+                    >
+                      Remove
+                    </CustomButton>
+                    )}
+                </HStack>
+
+                {typeof counter.id === 'number' && (
+                  <input
+                    type='hidden'
+                    {...register(`checkout_counters.${index}.id`, {
+                      valueAsNumber: true,
+                    })}
+                  />
+                )}
+
+                <GridShell justifyItems='center'>
+                  <FormControl isRequired isInvalid={!!counterErrors?.description}>
+                    <FormLabel htmlFor={descriptionId} fontSize='sm'>
+                      Checkout Counter Description
+                    </FormLabel>
+                    <Input
+                      id={descriptionId}
+                      {...register(`checkout_counters.${index}.description`)}
+                      placeholder='Example: Main till'
+                    />
+                    <FormErrorMessage>
+                      {counterErrors?.description?.message}
+                    </FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!counterErrors?.alias_value}>
+                    <FormLabel htmlFor={aliasId} fontSize='sm'>
+                      Custom Counter Alias (Optional)
+                    </FormLabel>
+                    <Input
+                      id={aliasId}
+                      {...register(`checkout_counters.${index}.alias_value`)}
+                      placeholder='Generated automatically when blank'
+                      maxLength={MERCHANT_ALIAS_MAX_LENGTH}
+                    />
+                    <FormErrorMessage>
+                      {counterErrors?.alias_value?.message}
+                    </FormErrorMessage>
+                  </FormControl>
+                </GridShell>
+              </Stack>
+            )
+          })}
+        </Stack>
 
         <Box alignSelf='end'>
           <CustomButton

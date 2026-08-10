@@ -5,6 +5,8 @@ import { AppDataSource } from '../../src/database/dataSource'
 import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { MerchantLocationType, NumberOfEmployees } from 'shared-lib'
 import { MerchantLocationEntity } from '../../src/entity/MerchantLocationEntity'
+import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
+import { syncCheckoutCounters } from '../../src/services/checkoutCounters'
 
 export function testPutMerchantLocations (app: Application): void {
   let token = ''
@@ -209,6 +211,11 @@ export function testPutMerchantLocations (app: Application): void {
   })
 
   it('should respond 200 with Merchant Location Updated message when everything is valid', async () => {
+    const existingCounter = await AppDataSource.manager.findOneOrFail(
+      CheckoutCounterEntity,
+      { where: { merchant: { id: validMerchantId } } }
+    )
+
     const res = await request(app)
       .put(`/api/v1/merchants/${validMerchantId}/locations/${validMerchantLocationId}`)
       .set('Authorization', `Bearer ${token}`)
@@ -231,7 +238,15 @@ export function testPutMerchantLocations (app: Application): void {
         country: 'United States of America 99',
         address_line: '99 Main Street, Townsville',
         latitude: '99.7128',
-        longitude: '74.99'
+        longitude: '74.99',
+        checkout_counters: [
+          {
+            id: existingCounter.id,
+            description: 'Main till',
+            alias_value: 'MERCHANT170-MAIN'
+          },
+          { description: 'Express till', alias_value: 'MERCHANT170-EXPRESS' }
+        ]
       })
 
     // Assert
@@ -302,8 +317,97 @@ export function testPutMerchantLocations (app: Application): void {
     expect(updatedLocation).toHaveProperty('longitude')
     expect(updatedLocation.longitude).toEqual('74.99')
 
+    const counters = await AppDataSource.manager.find(CheckoutCounterEntity, {
+      where: { merchant: { id: validMerchantId } },
+      relations: ['checkout_location'],
+      order: { id: 'ASC' }
+    })
+    expect(counters).toHaveLength(2)
+    expect(counters.map(counter => counter.description)).toEqual([
+      'Main till',
+      'Express till'
+    ])
+    expect(counters.map(counter => counter.counter_number)).toEqual([1, 2])
+    expect(counters.every(counter => counter.checkout_location.id === validMerchantLocationId))
+      .toBe(true)
+
+    const location = await AppDataSource.manager.findOneOrFail(
+      MerchantLocationEntity,
+      { where: { id: validMerchantLocationId } }
+    )
+    let merchantWithCounters = await AppDataSource.manager.findOneOrFail(
+      MerchantEntity,
+      {
+        where: { id: validMerchantId },
+        relations: ['checkout_counters', 'checkout_counters.checkout_location']
+      }
+    )
+    await AppDataSource.transaction(async manager => {
+      await syncCheckoutCounters(manager, merchantWithCounters, location, [
+        ...counters.map(counter => ({
+          id: counter.id,
+          description: counter.description,
+          alias_value: counter.alias_value ?? ''
+        })),
+        { description: 'Third till' }
+      ])
+    })
+
+    merchantWithCounters = await AppDataSource.manager.findOneOrFail(
+      MerchantEntity,
+      {
+        where: { id: validMerchantId },
+        relations: ['checkout_counters', 'checkout_counters.checkout_location']
+      }
+    )
+    const numberedCounters = [...merchantWithCounters.checkout_counters]
+      .sort((left, right) => left.counter_number - right.counter_number)
+    expect(numberedCounters.map(counter => counter.counter_number)).toEqual([1, 2, 3])
+
+    await AppDataSource.transaction(async manager => {
+      await syncCheckoutCounters(manager, merchantWithCounters, location, [
+        numberedCounters[0],
+        numberedCounters[2]
+      ].map(counter => ({
+        id: counter.id,
+        description: counter.description,
+        alias_value: counter.alias_value ?? ''
+      })))
+    })
+
+    merchantWithCounters = await AppDataSource.manager.findOneOrFail(
+      MerchantEntity,
+      {
+        where: { id: validMerchantId },
+        relations: ['checkout_counters', 'checkout_counters.checkout_location']
+      }
+    )
+    await AppDataSource.transaction(async manager => {
+      await syncCheckoutCounters(manager, merchantWithCounters, location, [
+        ...merchantWithCounters.checkout_counters.map(counter => ({
+          id: counter.id,
+          description: counter.description,
+          alias_value: counter.alias_value ?? ''
+        })),
+        { description: 'Replacement till' }
+      ])
+    })
+
+    const countersAfterReplacement = await AppDataSource.manager.find(
+      CheckoutCounterEntity,
+      {
+        where: { merchant: { id: validMerchantId } },
+        order: { counter_number: 'ASC' }
+      }
+    )
+    expect(countersAfterReplacement.map(counter => counter.counter_number))
+      .toEqual([1, 3, 4])
+
     // Clean up
     // await AppDataSource.query('SET FOREIGN_KEY_CHECKS = 0;')
+    await AppDataSource.manager.delete(CheckoutCounterEntity, {
+      merchant: { id: validMerchantId }
+    })
     await AppDataSource.manager.getRepository(MerchantLocationEntity).delete({ id: validMerchantLocationId })
     // await AppDataSource.query('SET FOREIGN_KEY_CHECKS = 1;')
   })

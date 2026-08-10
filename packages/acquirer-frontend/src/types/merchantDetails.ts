@@ -7,14 +7,16 @@ import type {
   NumberOfEmployees,
 } from 'shared-lib'
 
-interface CheckoutCounter {
+export interface CheckoutCounter {
   id: number
+  counter_number?: number
   description: string
   notification_number: string
   alias_type: string
   alias_value: string | null
   merchant_registry_id: number
-  qr_code_link: string
+  qr_code_link: string | null
+  checkout_location?: Pick<Location, 'id'> | null
   created_at: string
   updated_at: string
 }
@@ -40,7 +42,7 @@ type ContactPerson = {
   updated_at: Date
 }
 
-type Location = {
+export type Location = {
   id: number
   location_type: MerchantLocationType
   web_url: string

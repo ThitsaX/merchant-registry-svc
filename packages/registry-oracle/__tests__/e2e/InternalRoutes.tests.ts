@@ -138,6 +138,57 @@ export function internalRoutesTests (app: Application): void {
     expect(duplicate.body.message).toContain('already registered')
   })
 
+  it('reports merchant alias availability and recognizes its current owner', async () => {
+    await request(app)
+      .post('/internal/v1/merchants/registrations')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+      .set('Idempotency-Key', 'alias-availability-owner')
+      .send({
+        merchants: [{
+          merchant_id: 77701,
+          fspId: 'fsp-availability',
+          dfsp_name: 'Availability DFSP',
+          checkout_counter_id: 77801,
+          alias_value: 'LBR-MER-TAKEN',
+          currency_code: {
+            iso_code: 'USD',
+            description: 'US Dollar'
+          }
+        }]
+      })
+
+    const available = await request(app)
+      .get('/internal/v1/merchant-aliases/LBR-MER-FREE/availability')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+    const taken = await request(app)
+      .get('/internal/v1/merchant-aliases/LBR-MER-TAKEN/availability')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+    const currentOwner = await request(app)
+      .get('/internal/v1/merchant-aliases/LBR-MER-TAKEN/availability')
+      .query({ merchantId: 77701, checkoutCounterId: 77801 })
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+
+    expect(available.status).toBe(200)
+    expect(available.body.data.available).toBe(true)
+    expect(taken.status).toBe(200)
+    expect(taken.body.data.available).toBe(false)
+    expect(currentOwner.status).toBe(200)
+    expect(currentOwner.body.data.available).toBe(true)
+  })
+
+  it('validates merchant alias availability requests', async () => {
+    const malformedAlias = await request(app)
+      .get('/internal/v1/merchant-aliases/bad%20alias/availability')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+    const incompleteOwner = await request(app)
+      .get('/internal/v1/merchant-aliases/VALID-ALIAS/availability')
+      .query({ merchantId: 1 })
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+
+    expect(malformedAlias.status).toBe(400)
+    expect(incompleteOwner.status).toBe(400)
+  })
+
   it('replays DFSP credential registration without duplicate credentials', async () => {
     const register = async () => await request(app)
       .put('/internal/v1/dfsps/fsp-credential/access-credential')

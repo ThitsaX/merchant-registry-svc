@@ -1,12 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { type Response } from 'express'
 import { QueryFailedError } from 'typeorm'
-import * as z from 'zod'
 import { AppDataSource } from '../../database/dataSource'
 import { MerchantEntity } from '../../entity/MerchantEntity'
 import { MerchantLocationEntity } from '../../entity/MerchantLocationEntity'
 import logger from '../../services/logger'
-import { CheckoutCounterEntity } from '../../entity/CheckoutCounterEntity'
 
 import {
   MerchantLocationSubmitDataSchema
@@ -15,6 +13,10 @@ import { audit } from '../../utils/audit'
 import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
+import {
+  InvalidCheckoutCounterError,
+  syncCheckoutCounters
+} from '../../services/checkoutCounters'
 
 /**
  * @openapi
@@ -97,6 +99,29 @@ import { gleifService } from '../../services/GLEIFService'
  *               longitude:
  *                 type: string
  *                 example: "74.0060"
+ *               checkout_counters:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 50
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - description
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       description: Existing checkout-counter ID when updating a draft
+ *                     description:
+ *                       type: string
+ *                       example: "Main till"
+ *                     alias_value:
+ *                       type: string
+ *                       description: Optional globally unique custom alias
+ *                       example: "SHOP-123-MAIN"
+ *               checkout_description:
+ *                 type: string
+ *                 deprecated: true
+ *                 description: Legacy single-counter description
  *     responses:
  *       201:
  *         description: Merchant location created
@@ -134,24 +159,32 @@ export async function postMerchantLocation (req: AuthRequest, res: Response) {
   }
 
   const locationData = req.body
-
-  // Validate the Request Body
-  try {
-    MerchantLocationSubmitDataSchema.parse(locationData)
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      logger.error('Merchant Location Validation error: %o', err.issues.map(issue => issue.message))
-      await audit(
-        AuditActionType.ADD,
-        AuditTrasactionStatus.FAILURE,
-        'postMerchantLocation',
-        'Merchant Location Validation error',
-        'MerchantEntity',
-        {}, locationData, portalUser
-      )
-      return res.status(422).send({ message: err.issues.map(issue => issue.message) })
-    }
+  const validationResult = MerchantLocationSubmitDataSchema.safeParse(locationData)
+  if (!validationResult.success) {
+    const issues = validationResult.error.issues.map(issue => issue.message)
+    logger.error('Merchant Location Validation error: %o', issues)
+    await audit(
+      AuditActionType.ADD,
+      AuditTrasactionStatus.FAILURE,
+      'postMerchantLocation',
+      'Merchant Location Validation error',
+      'MerchantEntity',
+      {}, locationData, portalUser
+    )
+    return res.status(422).send({ message: issues })
   }
+
+  const {
+    checkout_counters: submittedCounters,
+    checkout_description: legacyCheckoutDescription,
+    ...validatedLocationData
+  } = validationResult.data
+  const legacyDescription = legacyCheckoutDescription?.trim()
+  const counterInputs = submittedCounters ?? [{
+    description: legacyDescription !== undefined && legacyDescription.length > 0
+      ? legacyDescription
+      : 'Main checkout counter'
+  }]
 
   const merchantRepository = AppDataSource.getRepository(MerchantEntity)
   const locationRepository = AppDataSource.getRepository(MerchantLocationEntity)
@@ -160,6 +193,7 @@ export async function postMerchantLocation (req: AuthRequest, res: Response) {
     where: { id },
     relations: [
       'checkout_counters',
+      'checkout_counters.checkout_location',
       'dfsps'
     ]
   })
@@ -200,13 +234,13 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   if (merchant.lei !== null && merchant.lei !== undefined && merchant.lei !== '') {
     const validationResult = await gleifService.validateLocation(
       merchant.lei,
-      locationData.street_name ?? '',
-      locationData.building_number ?? '',
-      locationData.postal_code ?? '',
-      locationData.town_name ?? '',
-      locationData.country_subdivision ?? '',
-      locationData.country ?? '',
-      locationData.address_line ?? ''
+      validatedLocationData.street_name ?? '',
+      validatedLocationData.building_number ?? '',
+      validatedLocationData.postal_code ?? '',
+      validatedLocationData.town_name ?? '',
+      validatedLocationData.country_subdivision ?? '',
+      validatedLocationData.country ?? '',
+      validatedLocationData.address_line ?? ''
     )
 
     if (!validationResult.isValid) {
@@ -230,14 +264,24 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   }
 
   const newLocation = locationRepository.create({
-    ...locationData,
+    ...validatedLocationData,
     merchant
   })
 
-  let savedLocation
+  let savedLocation: MerchantLocationEntity
+  let savedCounters: Awaited<ReturnType<typeof syncCheckoutCounters>>
   try {
-    savedLocation = await locationRepository.save(newLocation)
+    const saved = await AppDataSource.transaction(async manager => {
+      const location = await manager.save(MerchantLocationEntity, newLocation)
+      const counters = await syncCheckoutCounters(manager, merchant, location, counterInputs)
+      return { location, counters }
+    })
+    savedLocation = saved.location
+    savedCounters = saved.counters
   } catch (err) /* istanbul ignore next */ {
+    if (err instanceof InvalidCheckoutCounterError) {
+      return res.status(422).send({ message: err.message })
+    }
     if (err instanceof QueryFailedError) {
       logger.error('Query Failed: %o', err.message)
       await audit(
@@ -250,47 +294,18 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
       )
       return res.status(500).send({ message: err.message })
     }
+    throw err
   }
 
-  if (merchant.checkout_counters.length === 0) {
-    const checkoutCounter = new CheckoutCounterEntity()
-
-    const savedCheckoutCounter = await AppDataSource.manager.save(checkoutCounter)
-    merchant.checkout_counters.push(savedCheckoutCounter)
-    await AppDataSource.manager.save(merchant)
-  }
-
-  if (req.body.checkout_description !== undefined) {
-    merchant.checkout_counters[0].description = req.body.checkout_description
-  }
-
-  if (savedLocation instanceof MerchantLocationEntity) {
-    logger.debug('Saved Location for checkoutcoutner: %o', savedLocation)
-    merchant.checkout_counters[0].checkout_location = savedLocation
-  }
-
-  try {
-    await AppDataSource.getRepository(CheckoutCounterEntity).update(
-      merchant.checkout_counters[0].id,
-      merchant.checkout_counters[0]
-    )
-  } catch (err)/* istanbul ignore next */ {
-    if (err instanceof QueryFailedError) {
-      logger.error('Query Failed: %o', err.message)
-      await audit(
-        AuditActionType.ADD,
-        AuditTrasactionStatus.FAILURE,
-        'postMerchantLocation',
-        'Query Failed',
-        'MerchantEntity',
-        {}, locationData, portalUser
-      )
-      return res.status(500).send({ message: err.message })
-    }
-  }
-  savedLocation = {
+  const responseLocation = {
     ...savedLocation,
-    merchant: { id: merchant.id }
+    merchant: { id: merchant.id },
+    checkout_counters: savedCounters.map(counter => ({
+      id: counter.id,
+      counter_number: counter.counter_number,
+      description: counter.description,
+      alias_value: counter.alias_value
+    }))
   }
 
   await audit(
@@ -299,7 +314,7 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     'postMerchantLocation',
     'Merchant Location Saved',
     'MerchantEntity',
-    {}, savedLocation ?? {}, portalUser
+    {}, responseLocation, portalUser
   )
-  return res.status(201).send({ message: 'Merchant Location Saved', data: savedLocation })
+  return res.status(201).send({ message: 'Merchant Location Saved', data: responseLocation })
 }

@@ -18,7 +18,10 @@ import { uploadMerchantDocument } from '../../services/S3Client'
 import { audit } from '../../utils/audit'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
-import { saveRequestedMerchantAlias } from '../../services/merchantAlias'
+import {
+  isRequestedMerchantAliasAvailable,
+  saveRequestedMerchantAlias
+} from '../../services/merchantAlias'
 
 /**
  * @openapi
@@ -117,6 +120,31 @@ export async function postMerchantDraft (req: AuthRequest, res: Response) {
   const validationError = await validateMerchantData(req.body, portalUser)
   if (validationError !== null && validationError !== undefined) {
     return res.status(422).send(validationError)
+  }
+
+  try {
+    const aliasAvailable = await isRequestedMerchantAliasAvailable(req.body.payinto_alias)
+    if (!aliasAvailable) {
+      const aliasValue = req.body.payinto_alias.trim()
+      await audit(
+        AuditActionType.ADD,
+        AuditTrasactionStatus.FAILURE,
+        'postMerchantDraft',
+        `PayInto alias already registered: ${aliasValue}`,
+        'Merchant',
+        {}, { payinto_alias: aliasValue }, portalUser
+      )
+      return res.status(409).send({
+        message: `PayInto alias "${aliasValue}" is already registered`,
+        field: 'payinto_alias'
+      })
+    }
+  } catch (error) {
+    logger.error('Unable to verify PayInto alias availability: %o', error)
+    return res.status(503).send({
+      message: 'Unable to verify PayInto alias availability. Please try again.',
+      field: 'payinto_alias'
+    })
   }
 
   // Validate LEI if provided

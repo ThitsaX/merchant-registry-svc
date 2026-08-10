@@ -17,3 +17,22 @@ export function parseMerchantAlias(value: unknown): string | null {
 
   return alias
 }
+
+export function buildCheckoutCounterAlias(
+  aliasStem: unknown,
+  counterNumber: number
+): string | null {
+  const parsedAliasStem = parseMerchantAlias(aliasStem)
+  if (
+    parsedAliasStem === null ||
+    !Number.isInteger(counterNumber) ||
+    counterNumber < 1
+  ) {
+    return null
+  }
+
+  if (counterNumber === 1) return parsedAliasStem
+
+  const suffix = `-${counterNumber.toString().padStart(2, '0')}`
+  return `${parsedAliasStem.slice(0, MERCHANT_ALIAS_MAX_LENGTH - suffix.length)}${suffix}`
+}

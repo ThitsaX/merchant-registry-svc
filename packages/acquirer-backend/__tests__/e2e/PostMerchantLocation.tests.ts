@@ -5,6 +5,7 @@ import { AppDataSource } from '../../src/database/dataSource'
 import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { NumberOfEmployees } from 'shared-lib'
 import { MerchantLocationEntity } from '../../src/entity/MerchantLocationEntity'
+import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
 
 export function testPostMerchantLocations (app: Application): void {
   let token = ''
@@ -273,5 +274,50 @@ export function testPostMerchantLocations (app: Application): void {
     // await AppDataSource.query('SET FOREIGN_KEY_CHECKS = 0;')
     await AppDataSource.manager.getRepository(MerchantLocationEntity).delete({ id: res.body.data.id })
     // await AppDataSource.query('SET FOREIGN_KEY_CHECKS = 1;')
+  })
+
+  it('should create multiple checkout counters for one merchant location', async () => {
+    const res = await request(app)
+      .post(`/api/v1/merchants/${validMerchantId}/locations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: 'Physical',
+        country: 'United States of America',
+        town_name: 'Townsville',
+        checkout_counters: [
+          {
+            description: 'Main till',
+            alias_value: 'MERCHANT170-MAIN'
+          },
+          {
+            description: 'Express till',
+            alias_value: 'MERCHANT170-EXPRESS'
+          }
+        ]
+      })
+
+    expect(res.statusCode).toBe(201)
+    expect(res.body.data.checkout_counters).toHaveLength(2)
+    expect(res.body.data.checkout_counters.map((counter: CheckoutCounterEntity) =>
+      counter.counter_number
+    )).toEqual([1, 2])
+
+    const counters = await AppDataSource.manager.find(CheckoutCounterEntity, {
+      where: { merchant: { id: validMerchantId } },
+      relations: ['checkout_location'],
+      order: { id: 'ASC' }
+    })
+    expect(counters).toHaveLength(2)
+    expect(counters.map(counter => counter.description)).toEqual([
+      'Main till',
+      'Express till'
+    ])
+    expect(counters.map(counter => counter.counter_number)).toEqual([1, 2])
+    expect(counters.every(counter => counter.checkout_location.id === res.body.data.id)).toBe(true)
+
+    await AppDataSource.manager.delete(CheckoutCounterEntity, {
+      merchant: { id: validMerchantId }
+    })
+    await AppDataSource.manager.delete(MerchantLocationEntity, res.body.data.id)
   })
 }

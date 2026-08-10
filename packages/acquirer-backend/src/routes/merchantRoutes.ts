@@ -22,6 +22,10 @@ import { putBulkWaitingAliasGeneration } from './merchantControllers/putMerchant
 import { putBulkReject } from './merchantControllers/putMerchantRejectBulk'
 import { putBulkRevert } from './merchantControllers/putMerchantRevertBulk'
 import { exportMerchantFilterXlsx } from './merchantControllers/getMerchantExportFilterXlsx'
+import {
+  postApprovedCheckoutCounter,
+  postApprovedCheckoutCounterRegistration
+} from './merchantControllers/postApprovedCheckoutCounter'
 
 import { authenticateJWT } from '../middleware/authenticate'
 import { checkPermissions } from '../middleware/checkPermissions'
@@ -136,5 +140,15 @@ router.get('/merchants/:id/checkout-counters',
   authenticateJWT,
   checkPermissions(PermissionsEnum.VIEW_MERCHANTS),
   getMerchantCheckoutCounters)
+
+router.post('/merchants/:merchantId/checkout-counters',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.EDIT_MERCHANTS),
+  postApprovedCheckoutCounter)
+
+router.post('/merchants/:merchantId/checkout-counters/:counterId/registration',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.EDIT_MERCHANTS),
+  postApprovedCheckoutCounterRegistration)
 
 export default router

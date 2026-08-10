@@ -69,6 +69,7 @@ export async function getMerchantById (req: AuthRequest, res: Response) {
           'category_code',
           'currency_code',
           'checkout_counters',
+          'checkout_counters.checkout_location',
           'business_licenses',
           'contact_persons',
           'created_by',
@@ -143,6 +144,13 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
       }
     }
 
+    merchant.checkout_counters.sort((left, right) => {
+      const counterNumberDifference = left.counter_number - right.counter_number
+      return counterNumberDifference !== 0
+        ? counterNumberDifference
+        : left.id - right.id
+    })
+
     for (let i = 0; i < merchant.business_licenses?.length; i++) {
       const licenseDocumentLink = merchant.business_licenses[i].license_document_link
       if (licenseDocumentLink !== null &&
@@ -162,6 +170,14 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
 
     const merchantData = {
       ...merchant,
+      checkout_counters: merchant.checkout_counters.map(checkoutCounter => {
+        const {
+          creation_idempotency_key_hash: _idempotencyKeyHash,
+          creation_request_hash: _requestHash,
+          ...publicCheckoutCounter
+        } = checkoutCounter
+        return publicCheckoutCounter
+      }),
       created_by: {
         id: merchant.created_by.id,
         name: merchant.created_by.name,

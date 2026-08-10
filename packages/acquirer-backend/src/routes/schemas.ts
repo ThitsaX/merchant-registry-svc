@@ -77,7 +77,38 @@ export const MerchantLocationSubmitDataSchema = z.object({
   address_line: z.string().optional(),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
-  checkout_description: z.string().optional()
+  checkout_description: z.string().optional(),
+  checkout_counters: z.array(z.object({
+    id: z.number().int().positive().optional(),
+    description: z.string().trim().min(1, {
+      message: 'Checkout counter description is required'
+    }),
+    alias_value: z.string().trim().max(MERCHANT_ALIAS_MAX_LENGTH, {
+      message: `Alias cannot exceed ${MERCHANT_ALIAS_MAX_LENGTH} characters`
+    }).regex(MERCHANT_ALIAS_PATTERN, {
+      message: 'Alias can only contain letters, numbers, underscores, and hyphens'
+    }).or(z.literal('')).optional()
+  })).min(1, {
+    message: 'At least one checkout counter is required'
+  }).max(50, {
+    message: 'A location cannot have more than 50 checkout counters'
+  }).optional()
+})
+
+export const ApprovedCheckoutCounterSubmitDataSchema = z.object({
+  location_id: z.number().int().positive({
+    message: 'A valid merchant location is required'
+  }),
+  description: z.string().trim().min(1, {
+    message: 'Checkout counter description is required'
+  }).max(255, {
+    message: 'Checkout counter description cannot exceed 255 characters'
+  }),
+  alias_value: z.string().trim().max(MERCHANT_ALIAS_MAX_LENGTH, {
+    message: `Alias cannot exceed ${MERCHANT_ALIAS_MAX_LENGTH} characters`
+  }).regex(MERCHANT_ALIAS_PATTERN, {
+    message: 'Alias can only contain letters, numbers, underscores, and hyphens'
+  }).or(z.literal('')).optional()
 })
 
 export const ContactPersonSubmitDataSchema = z.object({

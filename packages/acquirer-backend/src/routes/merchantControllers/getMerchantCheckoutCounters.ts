@@ -118,6 +118,20 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     }
 
     const checkoutCounters = merchant.checkout_counters
+      .sort((left, right) => {
+        const counterNumberDifference = left.counter_number - right.counter_number
+        return counterNumberDifference !== 0
+          ? counterNumberDifference
+          : left.id - right.id
+      })
+      .map(checkoutCounter => {
+        const {
+          creation_idempotency_key_hash: _idempotencyKeyHash,
+          creation_request_hash: _requestHash,
+          ...publicCheckoutCounter
+        } = checkoutCounter
+        return publicCheckoutCounter
+      })
     await audit(
       AuditActionType.ACCESS,
       AuditTrasactionStatus.SUCCESS,

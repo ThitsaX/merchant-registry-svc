@@ -230,4 +230,31 @@ export function testRegisterMerchants (): void {
       checkout_counter_id: merchant.checkout_counter_id
     })).toBe(1)
   })
+
+  test('Generates distinct aliases for multiple checkout counters of one merchant', async () => {
+    const merchant = {
+      merchant_id: 66013,
+      fspId: 'fsp13',
+      dfsp_name: 'DFSP #13',
+      alias_stem: 'LBR-MER-0001234',
+      currency_code: {
+        iso_code: 'USD',
+        description: 'US Dollar'
+      }
+    }
+
+    const result = await registerMerchants([
+      { ...merchant, checkout_counter_id: 66113, checkout_counter_number: 1 },
+      { ...merchant, checkout_counter_id: 66114, checkout_counter_number: 2 },
+      { ...merchant, checkout_counter_id: 66115, checkout_counter_number: 3 }
+    ])
+
+    expect(result).toHaveLength(3)
+    expect(result.map(record => record.alias_value)).toEqual([
+      'LBR-MER-0001234',
+      'LBR-MER-0001234-02',
+      'LBR-MER-0001234-03'
+    ])
+    expect(new Set(result.map(record => record.alias_value))).toHaveProperty('size', 3)
+  })
 }

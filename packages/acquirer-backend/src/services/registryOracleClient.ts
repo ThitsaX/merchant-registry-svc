@@ -31,6 +31,8 @@ export interface RegistryMerchantData {
   fspId: string
   dfsp_name: string
   checkout_counter_id?: number
+  checkout_counter_number?: number
+  alias_stem?: string
   currency_code: {
     iso_code: string
     description: string
@@ -40,6 +42,7 @@ export interface RegistryMerchantData {
 }
 
 interface RegistryAliasData {
+  id?: number
   merchant_id: number
   checkout_counter_id: number
   alias_value: string
@@ -56,6 +59,11 @@ interface DFSPRegistryData {
 }
 
 export class RegistryAliasConflictError extends Error {}
+
+export interface RegistryAliasOwner {
+  merchantId: number
+  checkoutCounterId: number
+}
 
 function isRetryable (error: unknown): boolean {
   if (!isAxiosError(error)) return false
@@ -128,6 +136,27 @@ export async function registerMerchantsWithRegistry (
   await processBulkGenerateAlias(response.data)
 }
 
+export async function isMerchantAliasAvailableInRegistry (
+  aliasValue: string,
+  owner?: RegistryAliasOwner
+): Promise<boolean> {
+  const response = await requestRegistry<RegistryResponse<{
+    alias_value: string
+    available: boolean
+  }>>({
+    method: 'GET',
+    url: `/internal/v1/merchant-aliases/${encodeURIComponent(aliasValue)}/availability`,
+    params: owner === undefined
+      ? undefined
+      : {
+          merchantId: owner.merchantId,
+          checkoutCounterId: owner.checkoutCounterId
+        }
+  }, uuidv4())
+
+  return response.data.available
+}
+
 export async function registerDFSPWithRegistry (
   dfspData: DFSPRegistryData,
   idempotencyKey: string = uuidv4()
@@ -177,7 +206,8 @@ async function processAliasData (aliasData: RegistryAliasData): Promise<void> {
     aliasData.checkout_counter_id,
     checkoutCounterReference,
     aliasData.alias_value,
-    qrImageS3Path
+    qrImageS3Path,
+    aliasData.id
   )
   await updateMerchantStatus(aliasData.merchant_id)
 }
@@ -256,12 +286,16 @@ async function updateCheckoutCounter (
   checkoutCounterId: number,
   guid: string,
   aliasValue: string,
-  qrCodeLink: string
+  qrCodeLink: string,
+  merchantRegistryId?: number
 ): Promise<void> {
   await AppDataSource.manager.update(CheckoutCounterEntity, checkoutCounterId, {
     guid,
     alias_value: aliasValue,
-    qr_code_link: qrCodeLink
+    qr_code_link: qrCodeLink,
+    ...(merchantRegistryId === undefined
+      ? {}
+      : { merchant_registry_id: merchantRegistryId })
   })
 }
 

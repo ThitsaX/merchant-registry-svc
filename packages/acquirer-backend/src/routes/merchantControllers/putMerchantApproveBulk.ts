@@ -167,6 +167,25 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
         message: `Merchant ${merchant.id} does not have a valid merchant category code (MCC).`
       })
     }
+
+    if (merchant.checkout_counters.length === 0) {
+      return res.status(422).send({
+        message: `Merchant ${merchant.id} must have at least one checkout counter.`
+      })
+    }
+
+    const counterNumbers = merchant.checkout_counters.map(
+      counter => counter.counter_number
+    )
+    if (
+      !counterNumbers.includes(1) ||
+      counterNumbers.some(number => !Number.isInteger(number) || number < 1) ||
+      new Set(counterNumbers).size !== counterNumbers.length
+    ) {
+      return res.status(422).send({
+        message: `Merchant ${merchant.id} has invalid checkout counter numbering.`
+      })
+    }
   }
 
   try {
@@ -191,24 +210,49 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
       {}, {}, portalUser
     )
 
-    const registryMerchantData: RegistryMerchantData[] = merchants.map(merchant => {
+    const registryMerchantData: RegistryMerchantData[] = merchants.flatMap(merchant => {
       const dfsp = merchant.dfsps[0]
-      const checkoutCounter = merchant.checkout_counters[0]
-      const requestedAlias = checkoutCounter?.alias_value?.trim()
       if (dfsp === undefined) {
         throw new Error(`Merchant ${merchant.id} is missing a DFSP`)
       }
-      return {
-        merchant_id: merchant.id,
-        dfsp_name: dfsp.name,
-        fspId: dfsp.fspId,
-        checkout_counter_id: checkoutCounter?.id,
-        currency_code: merchant.currency_code,
-        lei: merchant.lei,
-        alias_value: requestedAlias !== undefined && requestedAlias.length > 0
-          ? requestedAlias
-          : undefined
+      const sortedCounters = [...merchant.checkout_counters]
+        .sort((left, right) => {
+          const counterNumberDifference = left.counter_number - right.counter_number
+          return counterNumberDifference !== 0
+            ? counterNumberDifference
+            : left.id - right.id
+        })
+      const primaryCounter = sortedCounters.find(counter => counter.counter_number === 1)
+      if (primaryCounter === undefined) {
+        throw new Error(`Merchant ${merchant.id} is missing its primary checkout counter`)
       }
+      const requestedStem = primaryCounter.alias_value?.trim()
+      const lei = merchant.lei?.trim()
+      const aliasStem = requestedStem !== undefined && requestedStem.length > 0
+        ? requestedStem
+        : (
+            lei !== undefined && lei.length > 0
+              ? lei
+              : (10000000 + merchant.id).toString()
+          )
+
+      return sortedCounters
+        .map(checkoutCounter => {
+          const requestedAlias = checkoutCounter.alias_value?.trim()
+          return {
+            merchant_id: merchant.id,
+            dfsp_name: dfsp.name,
+            fspId: dfsp.fspId,
+            checkout_counter_id: checkoutCounter.id,
+            checkout_counter_number: checkoutCounter.counter_number,
+            alias_stem: aliasStem,
+            currency_code: merchant.currency_code,
+            lei: merchant.lei,
+            alias_value: requestedAlias !== undefined && requestedAlias.length > 0
+              ? requestedAlias
+              : undefined
+          }
+        })
     })
 
     try {

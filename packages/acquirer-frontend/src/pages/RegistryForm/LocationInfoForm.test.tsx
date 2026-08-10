@@ -4,7 +4,7 @@ import { vi } from 'vitest'
 import type { MerchantDetails } from '@/types/merchantDetails'
 import { createLocationInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
-import LocationInfoForm, { removePropFromObj } from './LocationInfoForm'
+import LocationInfoForm from './LocationInfoForm'
 
 const draft = createLocationInfoMerchant()
 const fn = vi.fn()
@@ -38,18 +38,18 @@ vi.mock('@/api/hooks/forms', () => ({
     isFetching: false,
   }),
   useCreateLocationInfo: () => ({
-    mutate: () => fn('createLocationInfo'),
+    mutate: (payload: unknown) => fn('createLocationInfo', payload),
     isPending: false,
   }),
   useUpdateLocationInfo: () => ({
-    mutate: () => fn('updateLocationInfo'),
+    mutate: (payload: unknown) => fn('updateLocationInfo', payload),
     isPending: false,
   }),
 }))
 
 const mockSetActiveStep = vi.fn()
 
-describe('ContactPersonForm', () => {
+describe('LocationInfoForm', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     draftData = null
@@ -109,9 +109,8 @@ describe('ContactPersonForm', () => {
     })
     const longitudeInput: HTMLInputElement = screen.getByLabelText('Longitude')
     const latitudeInput: HTMLInputElement = screen.getByLabelText('Latitude')
-    const checkoutCounterDescriptionInput: HTMLInputElement = screen.getByLabelText(
-      'Checkout Counter Description'
-    )
+    const checkoutCounterDescriptionInput: HTMLInputElement =
+      screen.getByLabelText(/Checkout Counter Description/)
 
     expect(locationTypeInput.value).toEqual('Virtual')
     expect(websiteUrlInput.value).toEqual('https://www.example.com')
@@ -192,14 +191,29 @@ describe('ContactPersonForm', () => {
     const townshipInput: HTMLInputElement = screen.getByLabelText(/Township/, {
       selector: '[name="town_name"]',
     })
+    const counterDescriptionInput: HTMLInputElement = screen.getByLabelText(
+      /Checkout Counter Description/
+    )
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
 
     fireEvent.change(locationTypeInput, { target: { value: 'Virtual' } })
     fireEvent.change(countryInput, { target: { value: 'Australia' } })
     fireEvent.change(townshipInput, { target: { value: 'Perth' } })
+    fireEvent.change(counterDescriptionInput, { target: { value: 'Main till' } })
     fireEvent.click(submitButton)
 
-    await waitFor(() => expect(fn).toHaveBeenCalledWith('createLocationInfo'))
+    await waitFor(() =>
+      expect(fn).toHaveBeenCalledWith(
+        'createLocationInfo',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            checkout_counters: [
+              expect.objectContaining({ description: 'Main till' }),
+            ],
+          }),
+        })
+      )
+    )
   })
 
   it('should call "updateLocationInfo.mutate" when it is a draft', async () => {
@@ -215,7 +229,16 @@ describe('ContactPersonForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
     fireEvent.click(submitButton)
 
-    await waitFor(() => expect(fn).toHaveBeenCalledWith('updateLocationInfo'))
+    await waitFor(() =>
+      expect(fn).toHaveBeenCalledWith(
+        'updateLocationInfo',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            checkout_counters: [expect.objectContaining({ id: 1 })],
+          }),
+        })
+      )
+    )
   })
 
   it('should show an error toast when the merchantId is not found', async () => {
@@ -233,12 +256,45 @@ describe('ContactPersonForm', () => {
 
     await waitFor(() => expect(fn).toHaveBeenCalledWith('toast'))
   })
-})
 
-describe('removePropFromObj', () => {
-  it('should remove the given property from the object', () => {
-    const result = removePropFromObj({ a: 'a', b: 'b', c: 'c' }, 'b')
+  it('should add and submit multiple checkout counters', async () => {
+    draftData = null
+    mockMerchantId.mockReturnValue(1)
 
-    expect(result).toEqual({ a: 'a', c: 'c' })
+    render(
+      <TestWrapper>
+        <LocationInfoForm setActiveStep={mockSetActiveStep} />
+      </TestWrapper>
+    )
+
+    fireEvent.change(screen.getByLabelText(/Location Type/), {
+      target: { value: 'Physical' },
+    })
+    fireEvent.change(
+      screen.getByLabelText(/Country/, { selector: '[name="country"]' }),
+      { target: { value: 'Australia' } }
+    )
+    fireEvent.change(
+      screen.getByLabelText(/Township/, { selector: '[name="town_name"]' }),
+      { target: { value: 'Perth' } }
+    )
+    fireEvent.click(screen.getByText('Add counter'))
+
+    const descriptions = screen.getAllByLabelText(/Checkout Counter Description/)
+    fireEvent.change(descriptions[0], { target: { value: 'Main till' } })
+    fireEvent.change(descriptions[1], { target: { value: 'Express till' } })
+    fireEvent.click(screen.getByText('Save and Proceed'))
+
+    await waitFor(() => {
+      const payload = fn.mock.calls.find(call => call[0] === 'createLocationInfo')?.[1]
+      expect(payload).toEqual(expect.objectContaining({
+        params: expect.objectContaining({
+          checkout_counters: [
+            expect.objectContaining({ description: 'Main till' }),
+            expect.objectContaining({ description: 'Express till' }),
+          ],
+        }),
+      }))
+    })
   })
 })

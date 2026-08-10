@@ -81,6 +81,9 @@ export class MerchantEntity {
   @Column({ type: 'datetime', nullable: true })
     gleif_verified_at!: Date
 
+  @Column({ nullable: false, default: 2 })
+    next_checkout_counter_number!: number
+
   @ManyToOne(
     () => PortalUserEntity,
     portalUser => portalUser.created_merchants,

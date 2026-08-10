@@ -12,6 +12,7 @@ import { AppDataSource } from '../../src/database/dataSource'
 import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { MerchantRegistrationStatus } from 'shared-lib'
 import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
+import { isMerchantAliasAvailableInRegistry } from '../../src/services/registryOracleClient'
 
 export function testPostMerchantDraft (app: Application): void {
   let token = ''
@@ -84,6 +85,21 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.message).toContain(
       'payinto_alias: Alias can only contain letters, numbers, underscores, and hyphens'
     )
+  })
+
+  it('should reject a custom alias already registered in Registry Oracle', async () => {
+    jest.mocked(isMerchantAliasAvailableInRegistry).mockResolvedValueOnce(false)
+
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payinto_alias', 'LBR-MER-EXISTING')
+
+    expect(res.statusCode).toEqual(409)
+    expect(res.body).toEqual({
+      message: 'PayInto alias "LBR-MER-EXISTING" is already registered',
+      field: 'payinto_alias'
+    })
   })
 
   it('should respond with 201 and merchant data when everything is valid with Draft status', async () => {

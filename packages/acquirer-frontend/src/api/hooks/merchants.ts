@@ -10,12 +10,15 @@ import { FALLBACK_ERROR_MESSAGE } from '@/constants/errorMessage'
 import type { AllMerchantsFilterForm } from '@/lib/validations/allMerchantsFilter'
 import type { MerchantsFilterForm } from '@/lib/validations/merchantsFilter'
 import {
+  addApprovedCheckoutCounter,
   approveMerchants,
   exportMerchants,
   getMerchant,
   getMerchants,
   rejectMerchants,
+  retryApprovedCheckoutCounterRegistration,
   revertMerchants,
+  type ApprovedCheckoutCounterInput,
 } from '../merchants'
 
 interface ActionWithReasonParams {
@@ -23,10 +26,37 @@ interface ActionWithReasonParams {
   reason: string
 }
 
+interface AddCheckoutCounterParams {
+  merchantId: number
+  data: ApprovedCheckoutCounterInput
+  idempotencyKey: string
+}
+
+interface RetryCheckoutCounterParams {
+  merchantId: number
+  counterId: number
+}
+
+function mutationErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) return FALLBACK_ERROR_MESSAGE
+  const message = error.response?.data.message
+  return Array.isArray(message)
+    ? message.join(', ')
+    : typeof message === 'string'
+      ? message
+      : FALLBACK_ERROR_MESSAGE
+}
+
 type AllMerchantsParams = AllMerchantsFilterForm & PaginationParams
 type MerchantsParams = MerchantsFilterForm & PaginationParams
 
 function transformIntoTableData(merchantData: MerchantDetails): MerchantInfo {
+  const primaryCheckoutCounter = [...merchantData.checkout_counters]
+    .sort((left, right) =>
+      (left.counter_number ?? 1) - (right.counter_number ?? 1) ||
+      left.id - right.id
+    )[0]
+
   return {
     no: merchantData.id, // Assuming 'no' is the id of the merchant
     dbaName: merchantData.dba_trading_name,
@@ -34,7 +64,7 @@ function transformIntoTableData(merchantData: MerchantDetails): MerchantInfo {
     lei: merchantData.lei,
 
     // Assuming the first checkout counter's alias value is the payintoAccount
-    payintoAccountId: merchantData.checkout_counters[0]?.alias_value || 'N/A',
+    payintoAccountId: primaryCheckoutCounter?.alias_value || 'N/A',
     merchantType: merchantData.merchant_type,
 
     // Assuming the first location's country subdivision is the state
@@ -42,7 +72,7 @@ function transformIntoTableData(merchantData: MerchantDetails): MerchantInfo {
     countrySubdivision: merchantData.locations[0]?.country_subdivision || 'N/A',
 
     // Assuming the first checkout counter's description is the counterDescription
-    counterDescription: merchantData.checkout_counters[0]?.description || 'N/A',
+    counterDescription: primaryCheckoutCounter?.description || 'N/A',
     registeredDfspName: merchantData.default_dfsp.name,
     registrationStatus: merchantData.registration_status,
     maker: merchantData.created_by,
@@ -192,6 +222,54 @@ export function useMerchant(merchantId: number) {
       toastStatus: 'error',
       toastTitle: 'Fetching Merchant Data Failed!',
       toastDescription: FALLBACK_ERROR_MESSAGE,
+    },
+  })
+}
+
+export function useAddApprovedCheckoutCounter() {
+  const queryClient = useQueryClient()
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: ({ merchantId, data, idempotencyKey }: AddCheckoutCounterParams) =>
+      addApprovedCheckoutCounter(merchantId, data, idempotencyKey),
+    onSuccess: () => {
+      toast({ title: 'Checkout counter added', status: 'success' })
+    },
+    onError: error => {
+      toast({
+        title: 'Adding checkout counter failed',
+        description: mutationErrorMessage(error),
+        status: 'error',
+      })
+    },
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['merchants', variables.merchantId] })
+      queryClient.invalidateQueries({ queryKey: ['all-merchants'] })
+      queryClient.invalidateQueries({ queryKey: ['alias-generated-merchants'] })
+    },
+  })
+}
+
+export function useRetryApprovedCheckoutCounterRegistration() {
+  const queryClient = useQueryClient()
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: ({ merchantId, counterId }: RetryCheckoutCounterParams) =>
+      retryApprovedCheckoutCounterRegistration(merchantId, counterId),
+    onSuccess: () => {
+      toast({ title: 'Checkout counter registered', status: 'success' })
+    },
+    onError: error => {
+      toast({
+        title: 'Checkout counter registration failed',
+        description: mutationErrorMessage(error),
+        status: 'error',
+      })
+    },
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['merchants', variables.merchantId] })
     },
   })
 }

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import {
   RegistryAliasConflictError,
+  isMerchantAliasAvailableInRegistry,
   registerDFSPWithRegistry,
   registerMerchantsWithRegistry
 } from '../../src/services/registryOracleClient'
@@ -72,6 +73,31 @@ describe('Registry Oracle HTTP client', () => {
       registerMerchantsWithRegistry([], 'duplicate-alias-key')
     ).rejects.toThrow(RegistryAliasConflictError)
     expect(request).toHaveBeenCalledTimes(1)
+  })
+
+  it('checks alias availability for a specific merchant checkout counter', async () => {
+    const request = jest.spyOn(axios, 'request').mockResolvedValue({
+      data: {
+        data: {
+          alias_value: 'LBR-MER-0001234',
+          available: true
+        }
+      }
+    })
+
+    await expect(isMerchantAliasAvailableInRegistry(
+      'LBR-MER-0001234',
+      { merchantId: 42, checkoutCounterId: 84 }
+    )).resolves.toBe(true)
+
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'GET',
+      url: '/internal/v1/merchant-aliases/LBR-MER-0001234/availability',
+      params: {
+        merchantId: 42,
+        checkoutCounterId: 84
+      }
+    }))
   })
 
   it('allows a merchant after successful Registry Oracle registration', async () => {

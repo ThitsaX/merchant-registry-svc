@@ -1,5 +1,5 @@
 import {
-  Entity, Column, PrimaryGeneratedColumn,
+  Entity, Column, PrimaryGeneratedColumn, Index,
   ManyToOne,
   CreateDateColumn, UpdateDateColumn
 } from 'typeorm'
@@ -10,6 +10,9 @@ import { MerchantLocationEntity } from './MerchantLocationEntity'
 export class CheckoutCounterEntity {
   @PrimaryGeneratedColumn()
     id!: number
+
+  @Column({ nullable: false, default: 1 })
+    counter_number!: number
 
   @Column({ nullable: true, length: 255 })
     description!: string
@@ -31,6 +34,13 @@ export class CheckoutCounterEntity {
 
   @Column({ nullable: true })
     qr_code_link!: string
+
+  @Index({ unique: true })
+  @Column({ type: 'varchar', nullable: true, length: 64 })
+    creation_idempotency_key_hash!: string | null
+
+  @Column({ type: 'varchar', nullable: true, length: 64 })
+    creation_request_hash!: string | null
 
   // merchant_id
   @ManyToOne(

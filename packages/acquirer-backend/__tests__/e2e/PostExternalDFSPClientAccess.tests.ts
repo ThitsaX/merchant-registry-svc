@@ -25,7 +25,7 @@ export function testPostExternalDFSPClientAcess (app: Application): void {
       .set('Authorization', `Bearer ${hubUserToken}`)
       .send({
         name: 'NewDFSP',
-        fspId: 'DFSP001',
+        fspId: 'DFSP-CLIENT-ACCESS-E2E',
         dfspType: 'Other',
         activated: true,
         logoURI: 'https://picsum.photos/200/300',
@@ -112,7 +112,7 @@ export function testPostExternalDFSPClientAcess (app: Application): void {
       .set('Authorization', `Bearer ${hubUserToken}`)
       .send({
         name: 'NewDFSP',
-        fspId: 'DFSP001',
+        fspId: 'DFSP-CLIENT-ACCESS-E2E',
         dfspType: 'Other',
         activated: true,
         logoURI: 'https://picsum.photos/200/300',

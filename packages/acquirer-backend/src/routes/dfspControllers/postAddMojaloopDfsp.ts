@@ -5,11 +5,12 @@ import logger from '../../services/logger'
 import { type AuthRequest } from 'src/types/express'
 import { MojaloopDFSPEntity } from '../../entity/MojaloopDFSPEntity'
 import { z } from 'zod'
+import { isUniqueConstraintError } from '../../utils/databaseErrors'
 
 // Define a Zod schema for the request body
 const createMojaloopDFSPSchema = z.object({
-  name: z.string(),
-  fspId: z.string()
+  name: z.string().trim().min(1),
+  fspId: z.string().trim().min(1)
 })
 
 /**
@@ -77,6 +78,14 @@ export async function postAddMojaloopDfsp (req: AuthRequest, res: Response) {
   try {
     const DFSPRepository = AppDataSource.manager.getRepository(MojaloopDFSPEntity)
 
+    const existingDFSP = await DFSPRepository.findOne({ where: { dfsp_id: fspId } })
+    if (existingDFSP !== null) {
+      return res.status(409).send({
+        message: `DFSP ID "${fspId}" is already registered`,
+        field: 'fspId'
+      })
+    }
+
     // add  new mojaloop DFSP
     const newDFSP = new MojaloopDFSPEntity()
     newDFSP.dfsp_id = fspId
@@ -88,6 +97,13 @@ export async function postAddMojaloopDfsp (req: AuthRequest, res: Response) {
     res.status(201).send({ message: 'Mojaloop DFSP stored successfully', data: newDFSP })
   } catch (e: any) /* istanbul ignore next */ {
     logger.error(`Error storing mojaloop DFSP: ${e as string}`)
+
+    if (isUniqueConstraintError(e)) {
+      return res.status(409).send({
+        message: `DFSP ID "${fspId}" is already registered`,
+        field: 'fspId'
+      })
+    }
 
     res.status(500).send({ message: 'Internal Server Error' })
   }

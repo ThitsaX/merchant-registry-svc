@@ -62,7 +62,7 @@ export function testPostDFSP (app: Application): void {
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'NewDFSP',
-        fspId: 'DFSP001',
+        fspId: 'DFSP-E2E-CREATE',
         dfspType: 'Other',
         activated: true,
         logoURI: 'https://picsum.photos/200/300',
@@ -72,6 +72,27 @@ export function testPostDFSP (app: Application): void {
     expect(res.statusCode).toEqual(201)
     expect(res.body).toHaveProperty('message')
     expect(res.body.message).toEqual('DFSP created successfully')
+
+    const duplicate = await request(app)
+      .post('/api/v1/dfsps')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Duplicate DFSP',
+        fspId: 'DFSP-E2E-CREATE',
+        dfspType: 'Other',
+        activated: true,
+        businessLicenseId: 'ANOTHER-LICENSE'
+      })
+
+    expect(duplicate.statusCode).toEqual(409)
+    expect(duplicate.body).toEqual({
+      message: 'DFSP ID "DFSP-E2E-CREATE" is already registered',
+      field: 'fspId'
+    })
+    expect(await AppDataSource.manager.countBy(DFSPEntity, {
+      fspId: 'DFSP-E2E-CREATE'
+    })).toEqual(1)
+
     // Clean up
     await AppDataSource.manager.delete(DFSPEntity, res.body.data.id)
   })

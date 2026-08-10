@@ -2,7 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn, Column,
   OneToMany,
-  CreateDateColumn, UpdateDateColumn, ManyToMany
+  CreateDateColumn, UpdateDateColumn, ManyToMany, Index
 } from 'typeorm'
 
 import { DFSPType } from 'shared-lib'
@@ -11,6 +11,7 @@ import { MerchantEntity } from './MerchantEntity'
 import { AuditEntity } from './AuditEntity'
 
 @Entity('dfsps')
+@Index(['fspId'], { unique: true })
 export class DFSPEntity {
   @PrimaryGeneratedColumn()
     id!: number

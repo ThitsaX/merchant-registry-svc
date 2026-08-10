@@ -148,7 +148,7 @@ export async function seedDFSPs (appDataSource: DataSource): Promise<void> {
   for (const dfsp of DefaultDFSPs) {
     const dfspEntity = await appDataSource.manager.findOne(
       DFSPEntity,
-      { where: { name: dfsp.name } }
+      { where: { fspId: dfsp.fspId } }
     )
 
     if (dfspEntity == null) {

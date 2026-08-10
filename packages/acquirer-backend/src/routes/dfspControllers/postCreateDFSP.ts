@@ -8,11 +8,12 @@ import { z } from 'zod'
 import { AuditActionType, AuditTrasactionStatus, DFSPType } from 'shared-lib'
 import { audit } from '../../utils/audit'
 import { uploadDFSPLogo } from '../../services/S3Client'
+import { isUniqueConstraintError } from '../../utils/databaseErrors'
 
 // Define a Zod schema for the request body
 const createDFSPSchema = z.object({
-  name: z.string(),
-  fspId: z.string(),
+  name: z.string().trim().min(1),
+  fspId: z.string().trim().min(1),
   dfspType: z.nativeEnum(DFSPType),
   // joinedDate: z.string(),
   activated: z.boolean().or(z.string()),
@@ -104,6 +105,24 @@ export async function postCreateDFSP (req: AuthRequest, res: Response) {
   try {
     const DFSPRepository = AppDataSource.manager.getRepository(DFSPEntity)
 
+    const existingDFSP = await DFSPRepository.findOne({ where: { fspId } })
+    if (existingDFSP !== null) {
+      await audit(
+        AuditActionType.ADD,
+        AuditTrasactionStatus.FAILURE,
+        'postCreateDFSP',
+        `DFSP ID already registered: ${fspId}`,
+        'DFSPEntity',
+        {},
+        { fspId },
+        req.user
+      )
+      return res.status(409).send({
+        message: `DFSP ID "${fspId}" is already registered`,
+        field: 'fspId'
+      })
+    }
+
     // Create new DFSP
     const newDFSP = new DFSPEntity()
     newDFSP.name = name
@@ -157,6 +176,13 @@ export async function postCreateDFSP (req: AuthRequest, res: Response) {
       {},
       req.user
     )
+
+    if (isUniqueConstraintError(e)) {
+      return res.status(409).send({
+        message: `DFSP ID "${fspId}" is already registered`,
+        field: 'fspId'
+      })
+    }
 
     res.status(500).send({ message: 'Internal Server Error' })
   }

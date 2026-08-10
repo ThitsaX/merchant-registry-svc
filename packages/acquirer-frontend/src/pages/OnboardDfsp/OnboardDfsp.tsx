@@ -43,6 +43,7 @@ const OnboardDfsp = () => {
 
   const logoElementRef = useRef<HTMLInputElement>(null)
   const uploadFileButtonRef = useRef<HTMLButtonElement>(null)
+  const submissionInFlightRef = useRef(false)
 
   const mojaloopDfsps = useMojaloopDfsps()
   const onboardDfsp = useOnboardDfsp()
@@ -66,12 +67,22 @@ const OnboardDfsp = () => {
   }
 
   const onSubmit = async (values: onboardDfspForm) => {
+    if (submissionInFlightRef.current || onboardDfsp.isPending) return
+
     if (!values.logo) {
       setError('logo', { type: 'manual', message: 'Please upload a logo' })
       return
     }
-    await onboardDfsp.mutateAsync(values)
-    reset()
+
+    submissionInFlightRef.current = true
+    try {
+      await onboardDfsp.mutateAsync(values)
+      reset()
+    } catch {
+      // The mutation hook displays the API error.
+    } finally {
+      submissionInFlightRef.current = false
+    }
   }
 
   return (
@@ -209,7 +220,13 @@ const OnboardDfsp = () => {
               />
             </FormControl>
             <HStack>
-              <CustomButton type='submit' mt={40} ml={30}>
+              <CustomButton
+                type='submit'
+                mt={40}
+                ml={30}
+                isLoading={onboardDfsp.isPending}
+                isDisabled={onboardDfsp.isPending}
+              >
                 Submit
               </CustomButton>
             </HStack>

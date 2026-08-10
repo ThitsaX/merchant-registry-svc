@@ -1,8 +1,9 @@
 import {
-  Entity,
+  Entity, Index,
   PrimaryGeneratedColumn, Column
 } from 'typeorm'
 @Entity('mojaloopDfsps')
+@Index(['dfsp_id'], { unique: true })
 export class MojaloopDFSPEntity {
   @PrimaryGeneratedColumn()
     id!: number

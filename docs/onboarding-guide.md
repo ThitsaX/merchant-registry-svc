@@ -167,10 +167,11 @@ Before starting, collect:
   and settlement currency
 - Registered name, turnover, MCC, LEI, and business-license information when
   applicable
-- An optional custom merchant alias agreed with the DFSP
+- Optional custom aliases agreed with the DFSP
 - Physical or virtual location details
 - Country and at least a town or district
-- Checkout-counter description
+- A description for each checkout counter (for example, Main till and Express
+  till)
 - Business-owner identity and phone number
 - Contact-person name and phone number
 
@@ -195,12 +196,23 @@ the current form does not mark every address field as mandatory.
 Only the user recorded as the maker can move that merchant from `Draft` to
 `Review`.
 
-The optional **Custom Merchant Alias** is a scheme-facing identifier, not the
-merchant's display name. It must be globally unique and contain 1-32 letters,
-numbers, underscores, or hyphens. If it is omitted, Registry Oracle keeps the
-existing behavior: use the LEI when supplied, otherwise generate an alias from
-the merchant ID. Registry Oracle confirms ownership at approval time and
-rejects a duplicate alias without approving the merchant.
+In **Location Information**, one checkout counter is shown initially. Use
+**Add counter** for every additional till and give each counter a useful
+description. Counters can be removed while the merchant is still being
+prepared; each location requires 1-50 counters.
+
+The optional **Primary Checkout Counter Alias** in Business Information is the
+merchant's alias stem. For example, `LBR-MER-0001234` produces the primary alias
+`LBR-MER-0001234`, followed by `LBR-MER-0001234-02`,
+`LBR-MER-0001234-03`, and so on for counters whose custom alias is blank. Counter
+numbers are permanent: removing counter 2 does not rename counter 3, and the
+next counter receives number 4. The primary counter cannot be removed.
+
+Aliases are scheme-facing identifiers, not display names. Each alias must be
+globally unique and contain 1-32 letters, numbers, underscores, or hyphens. When
+the primary alias is omitted, Registry Oracle uses the LEI when supplied or the
+merchant-ID alias otherwise as the stem. Registry Oracle confirms ownership at
+approval time and rejects a duplicate alias without approving the merchant.
 
 ### Checker steps
 
@@ -208,8 +220,8 @@ rejects a duplicate alias without approving the merchant.
 2. Open **Merchant Records → Pending Merchant Records**.
 3. Open and inspect the submitted merchant.
 4. Choose one action:
-   - **Approve** to register the merchant alias and generate the static
-     checkout QR.
+   - **Approve** to register every checkout-counter alias and generate a static
+     QR for each counter.
    - **Revert** with a reason when the maker must correct and resubmit the
      record.
    - **Reject** with a reason when the application should not continue.
@@ -223,17 +235,40 @@ On successful approval, the status moves through:
 Review → Waiting For Alias Generation → Approved
 ```
 
-The Acquirer Backend registers the merchant with the Registry Oracle, receives
-the merchant alias, generates a static EMVCo QR for the checkout counter, and
-stores the QR image in MinIO. Successful registration also marks the merchant
-`Allowed`. If registry synchronization fails, the merchant returns to `Review`
-so approval can be retried.
+The Acquirer Backend registers every checkout counter with the Registry Oracle,
+receives its alias, generates a separate static EMVCo QR, and stores each QR
+image in MinIO. Successful registration also marks the merchant `Allowed`. If
+registry synchronization fails, the merchant returns to `Review` so approval
+can be retried.
 
 To verify completion:
 
 1. Open **Merchant Records → Alias Generated Merchant Records**.
 2. Open **View Details** for the merchant.
-3. Select **View QR Code** for the checkout counter.
+3. Confirm that every checkout counter is listed with a distinct alias.
+4. Select **View QR Code** for each counter and verify the counter description
+   and QR image.
+
+### Add checkout counters after approval
+
+A DFSP Admin or Operator can add counters without reopening or reapproving the
+merchant:
+
+1. Open **Merchant Records → Alias Generated Merchant Records**.
+2. Open **View Details** for the approved merchant.
+3. In **Checkout Information**, select **Add Checkout Counter**.
+4. Choose one of the merchant's existing locations and enter the counter
+   description.
+5. Leave **Custom Payinto Alias** blank to use the next suffix from the primary
+   alias, or enter an agreed globally unique alias.
+6. Select **Add and Generate QR**.
+
+The merchant remains `Approved`. The new counter receives the next permanent
+counter number, is registered independently with Registry Oracle, and gets its
+own QR image. The operation is idempotent, so retrying the same request cannot
+create a second counter. If Registry or QR storage is temporarily unavailable,
+the counter remains visible as pending; select **Retry Registration** after the
+dependency recovers.
 
 ## 6. Password recovery and user status
 

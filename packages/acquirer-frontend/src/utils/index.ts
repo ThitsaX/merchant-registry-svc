@@ -14,16 +14,20 @@ export function formatLatitudeLongitude(latitude?: string, longitude?: string) {
   return `${latitude}, ${longitude}`
 }
 
-export function downloadMerchantsBlobAsXlsx(blobData: Blob) {
+export function downloadBlob(blobData: Blob, filename: string) {
   const url = URL.createObjectURL(blobData)
   const link = document.createElement('a')
   link.href = url
-  link.setAttribute('download', 'merchants.xlsx')
+  link.setAttribute('download', filename)
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   // Revoke the Object URL when it's no longer needed
   URL.revokeObjectURL(url)
+}
+
+export function downloadMerchantsBlobAsXlsx(blobData: Blob) {
+  downloadBlob(blobData, 'merchants.xlsx')
 }
 
 export function isTokenExpired(token: string) {

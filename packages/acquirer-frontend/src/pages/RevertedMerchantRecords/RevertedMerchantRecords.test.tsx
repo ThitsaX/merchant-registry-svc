@@ -142,7 +142,7 @@ describe('RevertedMerchantRecords', () => {
     const addedTimeInput: HTMLInputElement = screen.getByLabelText('Added Time')
     const updatedTimeInput: HTMLInputElement = screen.getByLabelText('Updated Time')
     const dbaNameInput: HTMLInputElement = screen.getByLabelText('DBA Name')
-    const merchantId: HTMLInputElement = screen.getByLabelText('Merchant ID')
+    const merchantId: HTMLInputElement = screen.getByLabelText('ID')
     const payintoAccountId: HTMLInputElement = screen.getByLabelText('Payinto Account ID')
 
     fireEvent.change(addedByInput, { target: { value: 5 } })

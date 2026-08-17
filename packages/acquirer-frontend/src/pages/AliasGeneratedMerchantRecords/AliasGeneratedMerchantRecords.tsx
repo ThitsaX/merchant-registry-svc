@@ -164,8 +164,8 @@ const AliasGeneratedMerchantRecords = () => {
               name='merchantId'
               register={register}
               errors={errors}
-              label='Merchant ID'
-              placeholder='Enter Merchant ID'
+              label='ID'
+              placeholder='Enter ID'
             />
 
             <FormInput

@@ -19,7 +19,6 @@ import { Controller, useForm } from 'react-hook-form'
 import { MdFileUpload } from 'react-icons/md'
 import {
   CurrencyDescriptions,
-  MERCHANT_ALIAS_MAX_LENGTH,
   MerchantCategoryCodes,
   MerchantClassificationCodes,
   MerchantType,
@@ -122,7 +121,6 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
       dba_trading_name,
       registered_name,
       lei,
-      checkout_counters,
       employees_num,
       monthly_turnover,
       category_code,
@@ -132,14 +130,12 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
       business_licenses,
     } = draftData
 
-    const payinto_alias = checkout_counters?.[0]?.alias_value
     const merchant_category = category_code?.category_code
     const business_license = business_licenses?.[0]
 
     dba_trading_name && setValue('dba_trading_name', dba_trading_name)
     registered_name && setValue('registered_name', registered_name)
     lei && setValue('lei', lei)
-    payinto_alias && setValue('payinto_alias', payinto_alias)
     employees_num && setValue('employees_num', employees_num)
     monthly_turnover && setValue('monthly_turnover', monthly_turnover)
     merchant_category && setValue('category_code', merchant_category)
@@ -234,15 +230,6 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             errors={errors}
             label='Legal Entity Identifier (LEI)'
             placeholder='LEI (up to 20 characters)'
-          />
-
-          <FormInput
-            name='payinto_alias'
-            register={register}
-            errors={errors}
-            label='Primary Checkout Counter Alias (Optional)'
-            placeholder='Example: LBR-MER-00012345'
-            inputProps={{ maxLength: MERCHANT_ALIAS_MAX_LENGTH }}
           />
 
           <FormSelect

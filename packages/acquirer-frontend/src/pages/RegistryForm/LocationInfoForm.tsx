@@ -107,48 +107,51 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
   useEffect(() => {
     if (!draftData) return
 
-    if (!draftData.locations?.[0]) return
+    const location = draftData.locations?.[0]
+    if (location) {
+      const {
+        location_type,
+        web_url,
+        department,
+        sub_department,
+        street_name,
+        building_number,
+        building_name,
+        floor_number,
+        room_number,
+        post_box,
+        postal_code,
+        country,
+        town_name,
+        district_name,
+        country_subdivision,
+        longitude,
+        latitude,
+      } = location
 
-    const {
-      location_type,
-      web_url,
-      department,
-      sub_department,
-      street_name,
-      building_number,
-      building_name,
-      floor_number,
-      room_number,
-      post_box,
-      postal_code,
-      country,
-      town_name,
-      district_name,
-      country_subdivision,
-      longitude,
-      latitude,
-    } = draftData.locations[0]
+      location_type && setValue('location_type', location_type)
+      web_url && setValue('web_url', web_url)
+      department && setValue('department', department)
+      sub_department && setValue('sub_department', sub_department)
+      street_name && setValue('street_name', street_name)
+      building_number && setValue('building_number', building_number)
+      building_name && setValue('building_name', building_name)
+      floor_number && setValue('floor_number', floor_number)
+      room_number && setValue('room_number', room_number)
+      post_box && setValue('post_box', post_box)
+      postal_code && setValue('postal_code', postal_code)
+      country && setValue('country', country)
+      town_name && setValue('town_name', town_name)
+      district_name && setValue('district_name', district_name)
+      country_subdivision && setValue('country_subdivision', country_subdivision)
+      longitude && setValue('longitude', longitude)
+      latitude && setValue('latitude', latitude)
+    }
 
-    location_type && setValue('location_type', location_type)
-    web_url && setValue('web_url', web_url)
-    department && setValue('department', department)
-    sub_department && setValue('sub_department', sub_department)
-    street_name && setValue('street_name', street_name)
-    building_number && setValue('building_number', building_number)
-    building_name && setValue('building_name', building_name)
-    floor_number && setValue('floor_number', floor_number)
-    room_number && setValue('room_number', room_number)
-    post_box && setValue('post_box', post_box)
-    postal_code && setValue('postal_code', postal_code)
-    country && setValue('country', country)
-    town_name && setValue('town_name', town_name)
-    district_name && setValue('district_name', district_name)
-    country_subdivision && setValue('country_subdivision', country_subdivision)
-    longitude && setValue('longitude', longitude)
-    latitude && setValue('latitude', latitude)
     const locationCounters = draftData.checkout_counters?.filter(counter =>
-      counter.checkout_location == null ||
-      counter.checkout_location.id === draftData.locations[0].id
+      location == null
+        ? counter.checkout_location == null
+        : counter.checkout_location == null || counter.checkout_location.id === location.id
     )
     const counters = locationCounters?.length
       ? locationCounters.map((counter, index) => ({
@@ -157,8 +160,10 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
           description: counter.description || `Checkout counter ${index + 1}`,
           alias_value: counter.alias_value || '',
         }))
-      : [{ counter_number: 1, description: '', alias_value: '' }]
-    replaceCheckoutCounters(counters)
+      : location
+        ? [{ counter_number: 1, description: '', alias_value: '' }]
+        : null
+    if (counters) replaceCheckoutCounters(counters)
   }, [draftData, replaceCheckoutCounters, setValue])
 
   const showCounterAliasError = (error: unknown) => {
@@ -285,6 +290,8 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
             const counterErrors = errors.checkout_counters?.[index]
             const descriptionId = `checkout-counter-${index}-description`
             const aliasId = `checkout-counter-${index}-alias`
+            const counterNumber = counter.counter_number ?? index + 1
+            const isPrimaryCounter = counterNumber === 1
             return (
               <Stack
                 key={counter.fieldKey}
@@ -297,10 +304,10 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
               >
                 <HStack justify='space-between'>
                   <Text fontSize='sm' fontWeight='semibold'>
-                    Counter {counter.counter_number ?? index + 1}
+                    Counter {counterNumber}
                   </Text>
                   {checkoutCounters.length > 1 &&
-                    (counter.counter_number ?? index + 1) !== 1 && (
+                    !isPrimaryCounter && (
                     <CustomButton
                       colorVariant='danger'
                       onClick={() => removeCheckoutCounter(index)}
@@ -339,7 +346,9 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
 
                   <FormControl isInvalid={!!counterErrors?.alias_value}>
                     <FormLabel htmlFor={aliasId} fontSize='sm'>
-                      Custom Counter Alias (Optional)
+                      {isPrimaryCounter
+                        ? 'Primary Checkout Counter Alias (Optional)'
+                        : 'Custom Counter Alias (Optional)'}
                     </FormLabel>
                     <Input
                       id={aliasId}

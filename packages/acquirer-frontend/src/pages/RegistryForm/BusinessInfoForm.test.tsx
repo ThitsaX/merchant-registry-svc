@@ -6,7 +6,6 @@ import type { MerchantDetails } from '@/types/merchantDetails'
 import { createBusinessInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
 import BusinessInfoForm from './BusinessInfoForm'
-import { businessInfoSchema } from '@/lib/validations/registry'
 
 const draft = createBusinessInfoMerchant({
   checkout_counters: [
@@ -140,9 +139,6 @@ describe('BusinessInfoForm', () => {
 
     const dbaNameInput: HTMLInputElement = screen.getByLabelText(/Doing Business As Name/)
     const registeredNameInput: HTMLInputElement = screen.getByLabelText(/Registered Name/)
-    const customAliasInput: HTMLInputElement = screen.getByLabelText(
-      /Primary Checkout Counter Alias/
-    )
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
     const monthlyTurnOverInput: HTMLInputElement =
@@ -160,7 +156,6 @@ describe('BusinessInfoForm', () => {
 
     expect(dbaNameInput.value).toEqual('marco')
     expect(registeredNameInput.value).toEqual('')
-    expect(customAliasInput.value).toEqual('LBR-MER-00012345')
     expect(numberOfEmployeeInput.value).toEqual('6 - 10')
     expect(monthlyTurnOverInput.value).toEqual('')
     expect(merchantCategoryInput.value).toEqual('10120')
@@ -173,29 +168,16 @@ describe('BusinessInfoForm', () => {
     expect(licenseNumberInput.value).toEqual('1234')
   })
 
-  it('accepts supported aliases and rejects malformed aliases', () => {
-    const values = {
-      dba_trading_name: 'Merchant',
-      employees_num: '6 - 10',
-      category_code: '10120',
-      mcc: '5812',
-      merchant_type: 'Small Shop',
-      currency_code: 'ALL',
-      license_document: null,
-    }
+  it('does not edit the primary alias on the business step', () => {
+    draftData = draft
 
-    expect(
-      businessInfoSchema.safeParse({
-        ...values,
-        payinto_alias: 'LBR-MER-00012345',
-      }).success
-    ).toBe(true)
-    expect(
-      businessInfoSchema.safeParse({
-        ...values,
-        payinto_alias: 'invalid alias',
-      }).success
-    ).toBe(false)
+    render(
+      <TestWrapper>
+        <BusinessInfoForm setActiveStep={mockSetActiveStep} />
+      </TestWrapper>
+    )
+
+    expect(screen.queryByLabelText(/Primary Checkout Counter Alias/)).not.toBeInTheDocument()
   })
 
   it('should search and select a business activity', async () => {

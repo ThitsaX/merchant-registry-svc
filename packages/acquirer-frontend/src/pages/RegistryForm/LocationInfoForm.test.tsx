@@ -145,6 +145,26 @@ describe('LocationInfoForm', () => {
     expect(checkoutCounterDescriptionInput.value).toEqual('-')
   })
 
+  it('edits the primary alias only on the checkout-counter step', () => {
+    draftData = createLocationInfoMerchant({
+      locations: [],
+      checkout_counters: [{
+        ...draft.checkout_counters[0],
+        alias_value: 'LBR-MER-0001234',
+      }],
+    })
+
+    render(
+      <TestWrapper>
+        <LocationInfoForm setActiveStep={mockSetActiveStep} />
+      </TestWrapper>
+    )
+
+    expect(screen.getByLabelText(/Primary Checkout Counter Alias/)).toHaveValue(
+      'LBR-MER-0001234'
+    )
+  })
+
   it('rejects duplicate aliases within the counter form', () => {
     const result = locationInfoSchema.safeParse({
       location_type: 'Physical',
@@ -194,8 +214,7 @@ describe('LocationInfoForm', () => {
       </TestWrapper>
     )
 
-    const aliasInputs = screen.getAllByLabelText(/Custom Counter Alias/)
-    fireEvent.change(aliasInputs[aliasInputs.length - 1], {
+    fireEvent.change(screen.getByLabelText(/Custom Counter Alias/), {
       target: { value: 'COUNTER-EXISTING' },
     })
     fireEvent.click(screen.getByText('Save and Proceed'))

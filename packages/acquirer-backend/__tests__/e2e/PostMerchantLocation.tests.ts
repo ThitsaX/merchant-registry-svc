@@ -6,6 +6,7 @@ import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { NumberOfEmployees } from 'shared-lib'
 import { MerchantLocationEntity } from '../../src/entity/MerchantLocationEntity'
 import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
+import { isMerchantAliasAvailableInRegistry } from '../../src/services/registryOracleClient'
 
 export function testPostMerchantLocations (app: Application): void {
   let token = ''
@@ -172,6 +173,81 @@ export function testPostMerchantLocations (app: Application): void {
     expect(res.body.message).toEqual(
       expect.arrayContaining(['Country is required', 'Township is required'])
     )
+  })
+
+  it('should reject a counter alias already registered in Registry Oracle', async () => {
+    jest.mocked(isMerchantAliasAvailableInRegistry).mockResolvedValueOnce(false)
+
+    const res = await request(app)
+      .post(`/api/v1/merchants/${validMerchantId}/locations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: 'Physical',
+        country: 'United States of America',
+        town_name: 'Townsville',
+        checkout_counters: [{
+          description: 'Main till',
+          alias_value: 'COUNTER-REMOTE-EXISTING'
+        }]
+      })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toEqual({
+      message: 'Checkout counter alias "COUNTER-REMOTE-EXISTING" is already registered',
+      field: 'checkout_counters.0.alias_value',
+      counter_index: 0
+    })
+  })
+
+  it('should reject aliases entered more than once across counters', async () => {
+    const res = await request(app)
+      .post(`/api/v1/merchants/${validMerchantId}/locations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: 'Physical',
+        country: 'United States of America',
+        town_name: 'Townsville',
+        checkout_counters: [
+          { description: 'Main till', alias_value: 'COUNTER-DUPLICATE' },
+          { description: 'Express till', alias_value: 'counter-duplicate' }
+        ]
+      })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toEqual({
+      message: 'Checkout counter alias "counter-duplicate" is entered more than once',
+      field: 'checkout_counters.1.alias_value',
+      counter_index: 1
+    })
+  })
+
+  it('should reject a counter alias already used locally', async () => {
+    const existingCounter = await AppDataSource.manager.save(
+      CheckoutCounterEntity,
+      AppDataSource.manager.create(CheckoutCounterEntity, {
+        alias_value: 'COUNTER-LOCAL-EXISTING',
+        counter_number: 1
+      })
+    )
+
+    const res = await request(app)
+      .post(`/api/v1/merchants/${validMerchantId}/locations`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: 'Physical',
+        country: 'United States of America',
+        town_name: 'Townsville',
+        checkout_counters: [{
+          description: 'Main till',
+          alias_value: 'counter-local-existing'
+        }]
+      })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.body.field).toBe('checkout_counters.0.alias_value')
+    expect(res.body.message).toContain('already registered')
+
+    await AppDataSource.manager.delete(CheckoutCounterEntity, existingCounter.id)
   })
 
   it('should respond with 201 status and valid location data when everything is valid', async () => {

@@ -118,7 +118,25 @@ export const locationInfoSchema = z.object({
       })
     )
     .min(1, { message: 'Add at least one checkout counter' })
-    .max(50, { message: 'A location cannot have more than 50 checkout counters' }),
+    .max(50, { message: 'A location cannot have more than 50 checkout counters' })
+    .superRefine((counters, context) => {
+      const aliases = new Map<string, number>()
+      counters.forEach((counter, index) => {
+        const alias = counter.alias_value?.trim() ?? ''
+        if (alias.length === 0) return
+
+        const normalizedAlias = alias.toLowerCase()
+        if (aliases.has(normalizedAlias)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, 'alias_value'],
+            message: `Alias "${alias}" is entered more than once`,
+          })
+          return
+        }
+        aliases.set(normalizedAlias, index)
+      })
+    }),
 })
 
 export const ownerInfoSchema = z.object({

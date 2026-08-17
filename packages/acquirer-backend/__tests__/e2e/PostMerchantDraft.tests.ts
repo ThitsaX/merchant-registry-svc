@@ -102,6 +102,29 @@ export function testPostMerchantDraft (app: Application): void {
     })
   })
 
+  it('should reject a custom alias already used by another local counter', async () => {
+    const existingCounter = await AppDataSource.manager.save(
+      CheckoutCounterEntity,
+      AppDataSource.manager.create(CheckoutCounterEntity, {
+        alias_value: 'LBR-MER-LOCAL-EXISTING',
+        counter_number: 1
+      })
+    )
+
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('payinto_alias', 'lbr-mer-local-existing')
+
+    expect(res.statusCode).toEqual(409)
+    expect(res.body).toEqual({
+      message: 'PayInto alias "lbr-mer-local-existing" is already registered',
+      field: 'payinto_alias'
+    })
+
+    await AppDataSource.manager.delete(CheckoutCounterEntity, existingCounter.id)
+  })
+
   it('should respond with 201 and merchant data when everything is valid with Draft status', async () => {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
@@ -114,7 +137,7 @@ export function testPostMerchantDraft (app: Application): void {
       .field('category_code', '10410')
       .field('mcc', ' 5812 ')
       .field('merchant_type', 'Individual')
-      .field('payinto_alias', 'merchant1')
+      .field('payinto_alias', 'draft-valid-merchant-1')
       .field('license_number', '123456789')
 
     expect(res.statusCode).toEqual(201)
@@ -125,13 +148,13 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.data).toHaveProperty('registration_status')
     expect(res.body.data.registration_status).toEqual(MerchantRegistrationStatus.DRAFT)
     expect(res.body.data.mcc).toEqual('5812')
-    expect(res.body.data.checkout_counters[0].alias_value).toEqual('merchant1')
+    expect(res.body.data.checkout_counters[0].alias_value).toEqual('draft-valid-merchant-1')
 
     const checkoutCounter = await AppDataSource.manager.findOneByOrFail(
       CheckoutCounterEntity,
       { id: res.body.data.checkout_counters[0].id }
     )
-    expect(checkoutCounter.alias_value).toEqual('merchant1')
+    expect(checkoutCounter.alias_value).toEqual('draft-valid-merchant-1')
 
     // Clean up
     await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)
@@ -150,7 +173,7 @@ export function testPostMerchantDraft (app: Application): void {
       .field('currency_code', 'PHP')
       .field('category_code', '10410')
       .field('merchant_type', 'Individual')
-      .field('payinto_alias', 'merchant1')
+      .field('payinto_alias', 'draft-valid-merchant-2')
       .field('license_number', '111111')
       .attach('license_document', fs.createReadStream(filePath), { filename: 'dummy.pdf' })
 
@@ -167,7 +190,7 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.data.business_licenses[0]).toHaveProperty('license_number')
     expect(res.body.data.business_licenses[0]).toHaveProperty('license_document_link')
     expect(res.body.data.business_licenses[0].license_document_link).toContain('dummy')
-    expect(res.body.data.checkout_counters[0].alias_value).toEqual('merchant1')
+    expect(res.body.data.checkout_counters[0].alias_value).toEqual('draft-valid-merchant-2')
 
     // Clean up
     await removeMerchantDocument(res.body.data.business_licenses[0].license_document_link)

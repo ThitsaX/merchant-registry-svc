@@ -33,10 +33,11 @@ export async function isMerchantAliasAvailable (
   aliasValue: string,
   owner?: MerchantAliasOwner
 ): Promise<boolean> {
-  const aliasOwner = await AppDataSource.manager.findOne(RegistryEntity, {
-    where: { alias_value: aliasValue },
-    select: ['merchant_id', 'checkout_counter_id']
-  })
+  const aliasOwner = await AppDataSource.manager
+    .createQueryBuilder(RegistryEntity, 'registry')
+    .select(['registry.merchant_id', 'registry.checkout_counter_id'])
+    .where('LOWER(registry.alias_value) = LOWER(:aliasValue)', { aliasValue })
+    .getOne()
 
   if (aliasOwner === null) return true
 
@@ -130,10 +131,15 @@ export async function registerMerchants (merchants: MerchantData[]): Promise<Reg
         ? 'existing registry alias'
         : preferredAlias.aliasSource
 
-      const aliasOwner = await transactionalEntityManager.findOne(RegistryEntity, {
-        where: { alias_value: aliasValue },
-        select: ['id', 'merchant_id', 'checkout_counter_id']
-      })
+      const aliasOwner = await transactionalEntityManager
+        .createQueryBuilder(RegistryEntity, 'registry')
+        .select([
+          'registry.id',
+          'registry.merchant_id',
+          'registry.checkout_counter_id'
+        ])
+        .where('LOWER(registry.alias_value) = LOWER(:aliasValue)', { aliasValue })
+        .getOne()
       if (aliasOwner !== null && aliasOwner.id !== registryRecord.id) {
         throw new MerchantAliasConflictError(`Alias "${aliasValue}" is already registered`)
       }

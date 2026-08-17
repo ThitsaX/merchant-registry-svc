@@ -11,6 +11,7 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { isAxiosError } from 'axios'
 import { useFieldArray, useForm } from 'react-hook-form'
 import {
   MERCHANT_ALIAS_MAX_LENGTH,
@@ -40,6 +41,11 @@ interface LocationInfoFormProps {
   setActiveStep: React.Dispatch<React.SetStateAction<number>>
 }
 
+interface CounterAliasErrorResponse {
+  field?: unknown
+  message?: unknown
+}
+
 const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
   const toast = useToast()
 
@@ -48,6 +54,7 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     register,
     watch,
     formState: { errors },
+    setError,
     setValue,
     setFocus,
     handleSubmit,
@@ -154,6 +161,19 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     replaceCheckoutCounters(counters)
   }, [draftData, replaceCheckoutCounters, setValue])
 
+  const showCounterAliasError = (error: unknown) => {
+    if (!isAxiosError<CounterAliasErrorResponse>(error)) return
+    const { field, message } = error.response?.data ?? {}
+    if (typeof field !== 'string' || typeof message !== 'string') return
+    const match = /^checkout_counters\.(\d+)\.alias_value$/.exec(field)
+    if (match === null) return
+
+    const counterIndex = Number(match[1])
+    const aliasField = `checkout_counters.${counterIndex}.alias_value` as const
+    setError(aliasField, { type: 'server', message })
+    setFocus(aliasField)
+  }
+
   const onSubmit = (values: LocationInfoForm) => {
     if (!merchantId) {
       return toast({
@@ -164,13 +184,19 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
 
     const existingLocationId = draft.data?.locations?.[0]?.id
     if (existingLocationId) {
-      updateLocationInfo.mutate({
-        params: values,
-        merchantId,
-        locationId: existingLocationId,
-      })
+      updateLocationInfo.mutate(
+        {
+          params: values,
+          merchantId,
+          locationId: existingLocationId,
+        },
+        { onError: showCounterAliasError }
+      )
     } else {
-      createLocationInfo.mutate({ params: values, merchantId })
+      createLocationInfo.mutate(
+        { params: values, merchantId },
+        { onError: showCounterAliasError }
+      )
     }
   }
 

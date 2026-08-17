@@ -2,6 +2,7 @@ import { type EntityManager } from 'typeorm'
 import { CheckoutCounterEntity } from '../entity/CheckoutCounterEntity'
 import { MerchantEntity } from '../entity/MerchantEntity'
 import { type MerchantLocationEntity } from '../entity/MerchantLocationEntity'
+import { isRequestedMerchantAliasAvailable } from './merchantAlias'
 
 export interface CheckoutCounterInput {
   id?: number
@@ -10,6 +11,22 @@ export interface CheckoutCounterInput {
 }
 
 export class InvalidCheckoutCounterError extends Error {}
+
+export class CheckoutCounterAliasConflictError extends Error {
+  constructor (
+    public readonly counterIndex: number,
+    public readonly alias: string,
+    message = `Checkout counter alias "${alias}" is already registered`
+  ) {
+    super(message)
+  }
+}
+
+export class CheckoutCounterAliasAvailabilityError extends Error {
+  constructor (public readonly counterIndex: number) {
+    super('Unable to verify checkout counter alias availability. Please try again.')
+  }
+}
 
 function locationIdOf (counter: CheckoutCounterEntity): number | undefined {
   return counter.checkout_location?.id
@@ -29,6 +46,99 @@ function compareCounters (
   return counterNumberDifference !== 0
     ? counterNumberDifference
     : left.id - right.id
+}
+
+function resolveExistingCounters (
+  merchant: MerchantEntity,
+  locationId: number | undefined,
+  inputs: CheckoutCounterInput[]
+): Array<CheckoutCounterEntity | undefined> {
+  const availableCounters = [...(merchant.checkout_counters ?? [])]
+    .sort(compareCounters)
+    .filter(counter => {
+      const counterLocationId = locationIdOf(counter)
+      return counterLocationId === undefined || counterLocationId === locationId
+    })
+  const availableById = new Map(
+    availableCounters.map(counter => [counter.id, counter])
+  )
+  const usedIds = new Set<number>()
+
+  return inputs.map(input => {
+    const counter = input.id === undefined
+      ? availableCounters.find(existing =>
+        !usedIds.has(existing.id) && locationIdOf(existing) === undefined
+      )
+      : availableById.get(input.id)
+    if (counter?.id !== undefined) usedIds.add(counter.id)
+    return counter
+  })
+}
+
+/**
+ * Check every supplied counter alias against the request, local database, and
+ * Registry Oracle before the location transaction writes anything.
+ */
+export async function validateCheckoutCounterAliases (
+  merchant: MerchantEntity,
+  locationId: number | undefined,
+  inputs: CheckoutCounterInput[]
+): Promise<void> {
+  const existingCounters = resolveExistingCounters(merchant, locationId, inputs)
+  const seenAliases = new Map<string, number>()
+  const requestedAliases: Array<{
+    alias: string
+    counterIndex: number
+    counter?: CheckoutCounterEntity
+  }> = []
+
+  inputs.forEach((input, counterIndex) => {
+    const alias = input.alias_value?.trim() ?? ''
+    const existingCounter = existingCounters[counterIndex]
+    if (alias.length === 0) return
+
+    const normalizedAlias = alias.toLowerCase()
+    const existingIndex = seenAliases.get(normalizedAlias)
+    if (existingIndex !== undefined) {
+      throw new CheckoutCounterAliasConflictError(
+        counterIndex,
+        alias,
+        `Checkout counter alias "${alias}" is entered more than once`
+      )
+    }
+    seenAliases.set(normalizedAlias, counterIndex)
+    requestedAliases.push({
+      alias,
+      counterIndex,
+      counter: existingCounter
+    })
+  })
+
+  const availability = await Promise.all(requestedAliases.map(async requested => {
+    try {
+      const counter = requested.counter
+      return await isRequestedMerchantAliasAvailable(
+        requested.alias,
+        counter?.id === undefined
+          ? undefined
+          : {
+              merchantId: merchant.id,
+              checkoutCounterId: counter.id
+            }
+      )
+    } catch {
+      throw new CheckoutCounterAliasAvailabilityError(requested.counterIndex)
+    }
+  }))
+
+  const conflictIndex = availability.findIndex(available => !available)
+  if (conflictIndex >= 0) {
+    const conflict = requestedAliases[conflictIndex]
+    throw new CheckoutCounterAliasConflictError(
+      conflict.counterIndex,
+      conflict.alias
+    )
+  }
 }
 
 /**

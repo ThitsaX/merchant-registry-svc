@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import type { MerchantDetails } from '@/types/merchantDetails'
 import { createLocationInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
+import { locationInfoSchema } from '@/lib/validations/registry'
 import LocationInfoForm from './LocationInfoForm'
 
 const draft = createLocationInfoMerchant()
@@ -26,6 +27,11 @@ vi.mock('@/hooks', () => ({
 }))
 
 let draftData: MerchantDetails | null = null
+let locationMutationError: unknown = null
+
+interface MutationOptions {
+  onError?: (error: unknown) => void
+}
 
 vi.mock('@/api/hooks/forms', () => ({
   useCountries: () => ({ data: ['Australia'], isLoading: false }),
@@ -38,11 +44,17 @@ vi.mock('@/api/hooks/forms', () => ({
     isFetching: false,
   }),
   useCreateLocationInfo: () => ({
-    mutate: (payload: unknown) => fn('createLocationInfo', payload),
+    mutate: (payload: unknown, options?: MutationOptions) => {
+      fn('createLocationInfo', payload)
+      if (locationMutationError) options?.onError?.(locationMutationError)
+    },
     isPending: false,
   }),
   useUpdateLocationInfo: () => ({
-    mutate: (payload: unknown) => fn('updateLocationInfo', payload),
+    mutate: (payload: unknown, options?: MutationOptions) => {
+      fn('updateLocationInfo', payload)
+      if (locationMutationError) options?.onError?.(locationMutationError)
+    },
     isPending: false,
   }),
 }))
@@ -53,6 +65,7 @@ describe('LocationInfoForm', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     draftData = null
+    locationMutationError = null
   })
 
   beforeEach(() => {
@@ -130,6 +143,66 @@ describe('LocationInfoForm', () => {
     expect(longitudeInput.value).toEqual('99')
     expect(latitudeInput.value).toEqual('331')
     expect(checkoutCounterDescriptionInput.value).toEqual('-')
+  })
+
+  it('rejects duplicate aliases within the counter form', () => {
+    const result = locationInfoSchema.safeParse({
+      location_type: 'Physical',
+      country: 'Liberia',
+      town_name: 'Monrovia',
+      checkout_counters: [
+        { description: 'Main till', alias_value: 'COUNTER-ALIAS' },
+        { description: 'Express till', alias_value: 'counter-alias' },
+      ],
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues).toContainEqual(expect.objectContaining({
+      path: ['checkout_counters', 1, 'alias_value'],
+      message: 'Alias "counter-alias" is entered more than once',
+    }))
+  })
+
+  it('shows a server-side duplicate alias error on the affected counter', async () => {
+    draftData = createLocationInfoMerchant({
+      checkout_counters: [
+        draft.checkout_counters[0],
+        {
+          ...draft.checkout_counters[0],
+          id: 2,
+          counter_number: 2,
+          description: 'Express till',
+          alias_value: '',
+        },
+      ],
+    })
+    mockMerchantId.mockReturnValue(1)
+    locationMutationError = {
+      isAxiosError: true,
+      response: {
+        data: {
+          field: 'checkout_counters.1.alias_value',
+          message: 'Checkout counter alias "COUNTER-EXISTING" is already registered',
+        },
+      },
+    }
+
+    render(
+      <TestWrapper>
+        <LocationInfoForm setActiveStep={mockSetActiveStep} />
+      </TestWrapper>
+    )
+
+    const aliasInputs = screen.getAllByLabelText(/Custom Counter Alias/)
+    fireEvent.change(aliasInputs[aliasInputs.length - 1], {
+      target: { value: 'COUNTER-EXISTING' },
+    })
+    fireEvent.click(screen.getByText('Save and Proceed'))
+
+    expect(await screen.findByText(
+      'Checkout counter alias "COUNTER-EXISTING" is already registered'
+    )).toBeInTheDocument()
   })
 
   it('should reset the values of "Country Subdivision" and "District" when the value of "Country" is changed', () => {

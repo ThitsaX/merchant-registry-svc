@@ -14,8 +14,11 @@ import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
 import {
+  CheckoutCounterAliasAvailabilityError,
+  CheckoutCounterAliasConflictError,
   InvalidCheckoutCounterError,
-  syncCheckoutCounters
+  syncCheckoutCounters,
+  validateCheckoutCounterAliases
 } from '../../services/checkoutCounters'
 
 /**
@@ -228,6 +231,27 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     return res.status(400).send({
       message: 'Accessing different DFSP\'s Merchant is not allowed.'
     })
+  }
+
+  try {
+    await validateCheckoutCounterAliases(merchant, undefined, counterInputs)
+  } catch (error) {
+    if (error instanceof CheckoutCounterAliasConflictError) {
+      return res.status(409).send({
+        message: error.message,
+        field: `checkout_counters.${error.counterIndex}.alias_value`,
+        counter_index: error.counterIndex
+      })
+    }
+    if (error instanceof CheckoutCounterAliasAvailabilityError) {
+      logger.error('Unable to verify checkout counter alias availability: %o', error)
+      return res.status(503).send({
+        message: error.message,
+        field: `checkout_counters.${error.counterIndex}.alias_value`,
+        counter_index: error.counterIndex
+      })
+    }
+    throw error
   }
 
   // GLEIF Location validation

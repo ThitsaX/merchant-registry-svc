@@ -1,5 +1,4 @@
 import { parseMerchantAlias } from 'shared-lib'
-import { Not } from 'typeorm'
 import { AppDataSource } from '../database/dataSource'
 import { CheckoutCounterEntity } from '../entity/CheckoutCounterEntity'
 import { type MerchantEntity } from '../entity/MerchantEntity'
@@ -32,13 +31,16 @@ export async function isRequestedMerchantAliasAvailable (
   if (alias === null) return true
 
   const repository = AppDataSource.getRepository(CheckoutCounterEntity)
-  const localOwner = await repository.findOne({
-    where: {
-      alias_value: alias,
-      ...(owner === undefined ? {} : { id: Not(owner.checkoutCounterId) })
-    },
-    select: ['id']
-  })
+  const localAliasQuery = repository
+    .createQueryBuilder('checkout_counter')
+    .select('checkout_counter.id')
+    .where('LOWER(checkout_counter.alias_value) = LOWER(:alias)', { alias })
+  if (owner !== undefined) {
+    localAliasQuery.andWhere('checkout_counter.id != :checkoutCounterId', {
+      checkoutCounterId: owner.checkoutCounterId
+    })
+  }
+  const localOwner = await localAliasQuery.getOne()
 
   if (localOwner !== null) {
     return false

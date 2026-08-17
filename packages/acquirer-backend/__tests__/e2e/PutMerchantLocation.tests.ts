@@ -210,6 +210,43 @@ export function testPutMerchantLocations (app: Application): void {
     ])
   })
 
+  it('should reject updating a counter to another local alias', async () => {
+    const existingCounter = await AppDataSource.manager.findOneOrFail(
+      CheckoutCounterEntity,
+      { where: { merchant: { id: validMerchantId } } }
+    )
+    const aliasOwner = await AppDataSource.manager.save(
+      CheckoutCounterEntity,
+      AppDataSource.manager.create(CheckoutCounterEntity, {
+        alias_value: 'COUNTER-EDIT-EXISTING',
+        counter_number: 1
+      })
+    )
+
+    const res = await request(app)
+      .put(`/api/v1/merchants/${validMerchantId}/locations/${validMerchantLocationId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        location_type: MerchantLocationType.PHYSICAL,
+        country: 'United States of America',
+        town_name: 'Townsville',
+        checkout_counters: [{
+          id: existingCounter.id,
+          description: 'Main till',
+          alias_value: 'counter-edit-existing'
+        }]
+      })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toEqual({
+      message: 'Checkout counter alias "counter-edit-existing" is already registered',
+      field: 'checkout_counters.0.alias_value',
+      counter_index: 0
+    })
+
+    await AppDataSource.manager.delete(CheckoutCounterEntity, aliasOwner.id)
+  })
+
   it('should respond 200 with Merchant Location Updated message when everything is valid', async () => {
     const existingCounter = await AppDataSource.manager.findOneOrFail(
       CheckoutCounterEntity,

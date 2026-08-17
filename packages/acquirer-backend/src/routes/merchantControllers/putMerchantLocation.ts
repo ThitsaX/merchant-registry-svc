@@ -14,8 +14,11 @@ import { AuditActionType, AuditTrasactionStatus } from 'shared-lib'
 import { type AuthRequest } from 'src/types/express'
 import { gleifService } from '../../services/GLEIFService'
 import {
+  CheckoutCounterAliasAvailabilityError,
+  CheckoutCounterAliasConflictError,
   InvalidCheckoutCounterError,
-  syncCheckoutCounters
+  syncCheckoutCounters,
+  validateCheckoutCounterAliases
 } from '../../services/checkoutCounters'
 
 /**
@@ -220,6 +223,51 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
     return res.status(404).json({ message: 'Merchant Location not found' })
   }
 
+  const legacyDescription = legacyCheckoutDescription?.trim()
+  const existingCounterInputs = (location.checkout_counters ?? []).map((counter, index) => {
+    const existingDescription = counter.description?.trim()
+    return {
+      id: counter.id,
+      description: index === 0 && legacyDescription !== undefined && legacyDescription.length > 0
+        ? legacyDescription
+        : (
+            existingDescription !== undefined && existingDescription.length > 0
+              ? existingDescription
+              : `Checkout counter ${index + 1}`
+          )
+    }
+  })
+  const counterInputs = submittedCounters ?? (
+    existingCounterInputs.length > 0
+      ? existingCounterInputs
+      : [{
+          description: legacyDescription !== undefined && legacyDescription.length > 0
+            ? legacyDescription
+            : 'Main checkout counter'
+        }]
+  )
+
+  try {
+    await validateCheckoutCounterAliases(merchant, locationId, counterInputs)
+  } catch (error) {
+    if (error instanceof CheckoutCounterAliasConflictError) {
+      return res.status(409).send({
+        message: error.message,
+        field: `checkout_counters.${error.counterIndex}.alias_value`,
+        counter_index: error.counterIndex
+      })
+    }
+    if (error instanceof CheckoutCounterAliasAvailabilityError) {
+      logger.error('Unable to verify checkout counter alias availability: %o', error)
+      return res.status(503).send({
+        message: error.message,
+        field: `checkout_counters.${error.counterIndex}.alias_value`,
+        counter_index: error.counterIndex
+      })
+    }
+    throw error
+  }
+
   // GLEIF Location validation
   if (merchant.lei !== null && merchant.lei !== undefined && merchant.lei !== '') {
     const validationResult = await gleifService.validateLocation(
@@ -248,30 +296,6 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
       })
     }
   }
-
-  const legacyDescription = legacyCheckoutDescription?.trim()
-  const existingCounterInputs = (location.checkout_counters ?? []).map((counter, index) => {
-    const existingDescription = counter.description?.trim()
-    return {
-      id: counter.id,
-      description: index === 0 && legacyDescription !== undefined && legacyDescription.length > 0
-        ? legacyDescription
-        : (
-            existingDescription !== undefined && existingDescription.length > 0
-              ? existingDescription
-              : `Checkout counter ${index + 1}`
-          )
-    }
-  })
-  const counterInputs = submittedCounters ?? (
-    existingCounterInputs.length > 0
-      ? existingCounterInputs
-      : [{
-          description: legacyDescription !== undefined && legacyDescription.length > 0
-            ? legacyDescription
-            : 'Main checkout counter'
-        }]
-  )
 
   try {
     await AppDataSource.transaction(async manager => {

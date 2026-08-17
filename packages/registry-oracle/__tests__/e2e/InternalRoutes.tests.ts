@@ -133,7 +133,7 @@ export function internalRoutesTests (app: Application): void {
     expect((await register(77501, 77601, 'bad alias', 'invalid-alias')).status).toBe(400)
     expect((await register(77502, 77602, 'UNIQUE-ALIAS', 'unique-alias-1')).status).toBe(200)
 
-    const duplicate = await register(77503, 77603, 'UNIQUE-ALIAS', 'unique-alias-2')
+    const duplicate = await register(77503, 77603, 'unique-alias', 'unique-alias-2')
     expect(duplicate.status).toBe(409)
     expect(duplicate.body.message).toContain('already registered')
   })
@@ -161,7 +161,7 @@ export function internalRoutesTests (app: Application): void {
       .get('/internal/v1/merchant-aliases/LBR-MER-FREE/availability')
       .set('x-internal-api-key', INTERNAL_API_KEY)
     const taken = await request(app)
-      .get('/internal/v1/merchant-aliases/LBR-MER-TAKEN/availability')
+      .get('/internal/v1/merchant-aliases/lbr-mer-taken/availability')
       .set('x-internal-api-key', INTERNAL_API_KEY)
     const currentOwner = await request(app)
       .get('/internal/v1/merchant-aliases/LBR-MER-TAKEN/availability')

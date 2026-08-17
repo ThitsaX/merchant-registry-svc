@@ -42,6 +42,7 @@ vi.mock('@/api/hooks/merchants', () => ({
 const mockUsers = vi.fn()
 vi.mock('@/api/hooks/users', () => ({
   useUsers: () => mockUsers(),
+  useUserProfile: () => ({ data: undefined }),
 }))
 
 vi.mock('@/utils', () => ({

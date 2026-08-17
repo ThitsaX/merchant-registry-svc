@@ -562,7 +562,7 @@ const MerchantInformationModal = ({
   const merchant = useMerchant(selectedMerchantId)
   const userProfile = useUserProfile()
   const canManageCheckoutCounters =
-    userProfile.data?.role.permissions.includes('Edit Merchants') ?? false
+    userProfile.data?.role?.permissions.includes('Edit Merchants') ?? false
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} scrollBehavior='inside'>

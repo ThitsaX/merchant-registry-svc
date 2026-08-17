@@ -58,10 +58,9 @@ async function lookupRegistryRecord (
  *       - name: type
  *         in: path
  *         required: true
- *         description: Type of the participant
+ *         description: Type of the participant; accepted as supplied by the caller
  *         schema:
  *           type: string
- *           enum: [MERCHANT_PAYINTOID]
  *       - name: id
  *         in: path
  *         required: true
@@ -92,7 +91,7 @@ async function lookupRegistryRecord (
  *                         type: string
  *                         description: Merchant identifier or alias
  *       400:
- *         description: Invalid Type or Invalid ID
+ *         description: Invalid ID
  *         content:
  *           application/json:
  *             schema:
@@ -103,21 +102,7 @@ async function lookupRegistryRecord (
  *
  */
 router.get('/participants/:type/:id', async (req: Request, res: Response) => {
-  const { type, id } = req.params
-
-  // MERCHANT_PAYINTOID type (which can contain either merchant aliases or LEI codes)
-  if (type === undefined || type === null || type !== 'MERCHANT_PAYINTOID') {
-    logger.error('Invalid Type: %s', type)
-    await audit(
-      AuditActionType.ACCESS,
-      AuditTrasactionStatus.FAILURE,
-      'getParticipants',
-      'GET Participants: Invalid Type',
-      'RegistryEntity',
-      {}, { type }
-    )
-    return res.status(400).send(prepareError('Invalid Type. Supported types: MERCHANT_PAYINTOID'))
-  }
+  const { id } = req.params
 
   // The id can be either a merchant alias or an LEI code - we don't need to validate format
   // since the database lookup will handle both cases
@@ -144,10 +129,9 @@ router.get('/participants/:type/:id', async (req: Request, res: Response) => {
  *       - name: type
  *         in: path
  *         required: true
- *         description: Type of the party identifier
+ *         description: Type of the party identifier; accepted as supplied by the caller
  *         schema:
  *           type: string
- *           enum: [ALIAS]
  *       - name: id
  *         in: path
  *         required: true
@@ -178,7 +162,7 @@ router.get('/participants/:type/:id', async (req: Request, res: Response) => {
  *                         type: string
  *                         description: Merchant identifier or alias
  *       400:
- *         description: Invalid Type or Invalid ID
+ *         description: Invalid ID
  *         content:
  *           application/json:
  *             schema:
@@ -189,21 +173,7 @@ router.get('/participants/:type/:id', async (req: Request, res: Response) => {
  *
  */
 router.get('/parties/:type/:id', async (req: Request, res: Response) => {
-  const { type, id } = req.params
-
-  // ALIAS type for LEI-based merchant lookups
-  if (type === undefined || type === null || type !== 'ALIAS') {
-    logger.error('Invalid Type: %s', type)
-    await audit(
-      AuditActionType.ACCESS,
-      AuditTrasactionStatus.FAILURE,
-      'getParties',
-      'GET Parties: Invalid Type',
-      'RegistryEntity',
-      {}, { type }
-    )
-    return res.status(400).send(prepareError('Invalid Type. Supported types: ALIAS'))
-  }
+  const { id } = req.params
 
   // The id should be the LEI code - we lookup using alias_value
   const registryRecord = await lookupRegistryRecord(

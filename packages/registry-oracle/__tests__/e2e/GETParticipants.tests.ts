@@ -46,4 +46,30 @@ export function GETParticipantsTests (app: Application): void {
     expect(res.body.partyList[0]).toHaveProperty('fspId', registryEntries[0].fspId)
     expect(res.body.partyList[0]).toHaveProperty('currency', registryEntries[0].currency)
   })
+
+  it.each(['BUSINESS', 'ALIAS', 'CUSTOM_TYPE'])(
+    'should accept %s for participant lookups',
+    async (type) => {
+      const res = await request(app)
+        .get(`/participants/${type}/${registryEntries[0].alias_value}`)
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.body.partyList).toHaveLength(1)
+      expect(res.body.partyList[0]).toHaveProperty('fspId', registryEntries[0].fspId)
+      expect(res.body.partyList[0]).toHaveProperty('currency', registryEntries[0].currency)
+    }
+  )
+
+  it.each(['BUSINESS', 'ALIAS', 'CUSTOM_TYPE'])(
+    'should accept %s for party lookups',
+    async (type) => {
+      const res = await request(app)
+        .get(`/parties/${type}/${registryEntries[0].alias_value}`)
+
+      expect(res.statusCode).toEqual(200)
+      expect(res.body.partyList).toHaveLength(1)
+      expect(res.body.partyList[0]).toHaveProperty('fspId', registryEntries[0].fspId)
+      expect(res.body.partyList[0]).toHaveProperty('currency', registryEntries[0].currency)
+    }
+  )
 }

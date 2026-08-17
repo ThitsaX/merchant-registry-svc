@@ -78,6 +78,9 @@ export function testGetMerchantsSucceed (app: Application): void {
   afterAll(async () => {
     // Clean Up
     await Promise.all(merchants.map(async (merchant: any) => {
+      for (const counter of merchant.checkout_counters ?? []) {
+        await AppDataSource.manager.delete(CheckoutCounterEntity, counter.id)
+      }
       await AppDataSource.manager.delete(MerchantEntity, merchant.id)
     }))
   })
@@ -235,6 +238,7 @@ export function testGetMerchantsSucceed (app: Application): void {
     expect(res.statusCode).toEqual(200)
     expect(res.body.data).toBeInstanceOf(Array)
     expect(res.body.data.length).toEqual(1)
+    expect(res.body.data[0].checkout_counters).toHaveLength(2)
 
     // Clean up
     await AppDataSource.manager.delete(CheckoutCounterEntity, checkoutCounter.id)

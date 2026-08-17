@@ -11,7 +11,7 @@ export interface MerchantInfo {
   merchantType: MerchantType
   town: string
   countrySubdivision: string
-  counterDescription: string
+  checkoutCounterCount: number
   registeredDfspName: string
   registrationStatus: MerchantRegistrationStatus
   maker: CreatedBy

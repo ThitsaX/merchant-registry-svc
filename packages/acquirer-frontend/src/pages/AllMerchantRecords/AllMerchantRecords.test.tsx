@@ -14,7 +14,7 @@ const hoistedValues = vi.hoisted(() => ({
       merchantType: 'Small Shop',
       town: 'Townsville',
       countrySubdivision: 'Western Australia',
-      counterDescription: 'N/A',
+      checkoutCounterCount: 2,
       registeredDfspName: 'DFSP 1',
       registrationStatus: 'Pending',
       maker: {
@@ -119,6 +119,9 @@ describe('AllMerchantRecords', () => {
     )
 
     expect(screen.getByTestId('table')).toBeInTheDocument()
+    expect(screen.getAllByText('Checkout Counter Count').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Counter Description')).not.toBeInTheDocument()
     expect(screen.getByText('Export')).toBeInTheDocument()
   })
 

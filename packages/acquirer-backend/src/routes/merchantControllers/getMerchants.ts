@@ -175,7 +175,12 @@ export async function getMerchants (req: AuthRequest, res: Response) {
       .addSelect(['created_by.id', 'created_by.name'])
       .addSelect(['checked_by.id', 'checked_by.name'])
       .addSelect(['locations.country_subdivision', 'locations.town_name'])
-      .addSelect(['checkout_counters.alias_value', 'checkout_counters.description'])
+      .addSelect([
+        'checkout_counters.id',
+        'checkout_counters.counter_number',
+        'checkout_counters.alias_value',
+        'checkout_counters.description'
+      ])
       .innerJoin('merchant.dfsps', 'dfsp')
 
     if (portalUser.dfsp !== null) {

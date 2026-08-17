@@ -14,7 +14,7 @@ const hoistedValues = vi.hoisted(() => ({
       merchantType: 'Small Shop',
       town: 'Townsville',
       countrySubdivision: 'Western Australia',
-      counterDescription: 'N/A',
+      checkoutCounterCount: 0,
       registeredDfspName: 'DFSP 1',
       registrationStatus: 'Rejected',
       maker: {

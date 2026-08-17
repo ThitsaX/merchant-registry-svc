@@ -71,8 +71,7 @@ function transformIntoTableData(merchantData: MerchantDetails): MerchantInfo {
     town: merchantData.locations[0]?.town_name || 'N/A',
     countrySubdivision: merchantData.locations[0]?.country_subdivision || 'N/A',
 
-    // Assuming the first checkout counter's description is the counterDescription
-    counterDescription: primaryCheckoutCounter?.description || 'N/A',
+    checkoutCounterCount: merchantData.checkout_counters.length,
     registeredDfspName: merchantData.default_dfsp.name,
     registrationStatus: merchantData.registration_status,
     maker: merchantData.created_by,

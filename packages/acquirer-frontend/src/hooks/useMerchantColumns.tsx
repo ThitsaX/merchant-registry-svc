@@ -118,9 +118,9 @@ export const useMerchantColumns = ({
         cell: info => info.getValue(),
         header: 'Country Subdivision',
       }),
-      columnHelper.accessor('counterDescription', {
+      columnHelper.accessor('checkoutCounterCount', {
         cell: info => info.getValue(),
-        header: 'Counter Description',
+        header: 'Checkout Counter Count',
       }),
       columnHelper.accessor('registeredDfspName', {
         cell: info => info.getValue(),

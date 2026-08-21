@@ -1,5 +1,6 @@
 /* eslint-disable max-len */
 
+import { nextTestLei } from './testLei'
 import {
   removeMerchantDocument
 } from '../../src/services/S3Client'
@@ -13,6 +14,7 @@ import { MerchantEntity } from '../../src/entity/MerchantEntity'
 import { MerchantRegistrationStatus } from 'shared-lib'
 import { CheckoutCounterEntity } from '../../src/entity/CheckoutCounterEntity'
 import { isMerchantAliasAvailableInRegistry } from '../../src/services/registryOracleClient'
+import { PortalUserEntity } from '../../src/entity/PortalUserEntity'
 
 export function testPostMerchantDraft (app: Application): void {
   let token = ''
@@ -38,6 +40,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', 'Bearer invalid_token')
+      .field('lei', nextTestLei())
     expect(res.statusCode).toEqual(401)
   })
 
@@ -45,6 +48,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('merchant_type', 'non-existing-merchant-type')
 
     expect(res.statusCode).toEqual(422)
@@ -53,10 +57,24 @@ export function testPostMerchantDraft (app: Application): void {
     expect(res.body.message[0]).toContain('merchant_type: Invalid enum value.')
   })
 
+  it('allows a merchant draft without an LEI', async () => {
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('dba_trading_name', 'Merchant without LEI')
+
+    expect(res.statusCode).toEqual(201)
+    expect(res.body.data.lei).toBeNull()
+    expect(res.body.data.gleif_verified_at).toBeNull()
+
+    await AppDataSource.manager.delete(MerchantEntity, res.body.data.id)
+  })
+
   it('should reject an unsupported merchant category code', async () => {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('mcc', '1234')
 
     expect(res.statusCode).toEqual(422)
@@ -67,6 +85,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('category_code', 'invalid')
 
     expect(res.statusCode).toEqual(422)
@@ -79,6 +98,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('payinto_alias', 'invalid alias')
 
     expect(res.statusCode).toEqual(422)
@@ -93,6 +113,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('payinto_alias', 'LBR-MER-EXISTING')
 
     expect(res.statusCode).toEqual(409)
@@ -114,6 +135,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('payinto_alias', 'lbr-mer-local-existing')
 
     expect(res.statusCode).toEqual(409)
@@ -125,10 +147,48 @@ export function testPostMerchantDraft (app: Application): void {
     await AppDataSource.manager.delete(CheckoutCounterEntity, existingCounter.id)
   })
 
+  it('rejects a LEI already registered with another DFSP and names its owner', async () => {
+    const lei = 'LEICONFLICT000000001'
+    const owner = await AppDataSource.manager.findOneOrFail(PortalUserEntity, {
+      where: { email: dfspUserEmail },
+      relations: ['dfsp']
+    })
+    const existingMerchant = await AppDataSource.manager.save(
+      MerchantEntity,
+      AppDataSource.manager.create(MerchantEntity, {
+        dba_trading_name: 'Existing LEI Merchant',
+        lei,
+        lei_normalized: lei,
+        default_dfsp: owner.dfsp,
+        dfsps: [owner.dfsp]
+      })
+    )
+
+    const res = await request(app)
+      .post('/api/v1/merchants/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .field('lei', lei.toLowerCase())
+      .field('dba_trading_name', 'Duplicate LEI Merchant')
+
+    expect(res.statusCode).toEqual(409)
+    expect(res.body).toEqual({
+      message: `LEI "${lei}" is already registered with DFSP "${owner.dfsp.name}" (${owner.dfsp.fspId})`,
+      field: 'lei',
+      registered_dfsps: [{
+        id: owner.dfsp.id,
+        name: owner.dfsp.name,
+        fsp_id: owner.dfsp.fspId
+      }]
+    })
+
+    await AppDataSource.manager.delete(MerchantEntity, existingMerchant.id)
+  })
+
   it('should respond with 201 and merchant data when everything is valid with Draft status', async () => {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Some Trading Name')
       .field('registered_name', 'Some Registered Name')
       .field('employees_num', '1 - 5')
@@ -166,6 +226,7 @@ export function testPostMerchantDraft (app: Application): void {
     const res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Some Trading Name')
       .field('registered_name', 'Some Registered Name')
       .field('employees_num', '1 - 5')

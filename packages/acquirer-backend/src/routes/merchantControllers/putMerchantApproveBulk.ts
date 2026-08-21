@@ -195,8 +195,7 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
       .set({
         registration_status: MerchantRegistrationStatus.WAITINGALIASGENERATION,
         registration_status_reason: 'Bulk Updated to "Waiting For Alias Generation"',
-        checked_by: portalUser,
-        gleif_verified_at: new Date()
+        checked_by: portalUser
       })
       .whereInIds(ids)
       .execute()
@@ -247,7 +246,7 @@ export async function putBulkWaitingAliasGeneration (req: AuthRequest, res: Resp
             checkout_counter_number: checkoutCounter.counter_number,
             alias_stem: aliasStem,
             currency_code: merchant.currency_code,
-            lei: merchant.lei,
+            lei: merchant.lei ?? undefined,
             alias_value: requestedAlias !== undefined && requestedAlias.length > 0
               ? requestedAlias
               : undefined

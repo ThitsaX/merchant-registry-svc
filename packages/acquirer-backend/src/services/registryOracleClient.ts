@@ -65,6 +65,13 @@ export interface RegistryAliasOwner {
   checkoutCounterId: number
 }
 
+export interface RegistryLeiRegistration {
+  lei: string
+  merchant_id: number
+  fspId: string
+  dfsp_name: string
+}
+
 function isRetryable (error: unknown): boolean {
   if (!isAxiosError(error)) return false
   if (error.response === undefined) return true
@@ -155,6 +162,18 @@ export async function isMerchantAliasAvailableInRegistry (
   }, uuidv4())
 
   return response.data.available
+}
+
+export async function findMerchantLeiRegistrationsInRegistry (
+  leis: string[]
+): Promise<RegistryLeiRegistration[]> {
+  if (leis.length === 0) return []
+  const response = await requestRegistry<RegistryResponse<RegistryLeiRegistration[]>>({
+    method: 'POST',
+    url: '/internal/v1/merchant-leis/registrations/query',
+    data: { leis }
+  }, uuidv4())
+  return response.data
 }
 
 export async function registerDFSPWithRegistry (
@@ -302,7 +321,7 @@ async function updateCheckoutCounter (
 async function updateMerchantStatus (merchantId: number): Promise<void> {
   const currentMerchant = await AppDataSource.manager.findOne(MerchantEntity, {
     where: { id: merchantId },
-    select: ['gleif_verified_at']
+    select: ['gleif_verified_at', 'lei']
   })
 
   const updateData: any = {
@@ -319,5 +338,6 @@ async function updateMerchantStatus (merchantId: number): Promise<void> {
 
 function shouldSetGleifVerifiedAt (merchant: MerchantEntity | null): boolean {
   return merchant !== null && merchant !== undefined &&
+         (merchant.lei?.trim().length ?? 0) > 0 &&
          (merchant.gleif_verified_at === null || merchant.gleif_verified_at === undefined)
 }

@@ -15,6 +15,7 @@ import {
   VisuallyHiddenInput,
 } from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { isAxiosError } from 'axios'
 import { Controller, useForm } from 'react-hook-form'
 import { MdFileUpload } from 'react-icons/md'
 import {
@@ -78,6 +79,11 @@ interface LicenseDocument {
   link: string
 }
 
+interface BusinessFieldErrorResponse {
+  field?: unknown
+  message?: unknown
+}
+
 const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
   const navigate = useNavigate()
   const toast = useToast()
@@ -94,6 +100,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
     control,
     watch,
     formState: { errors },
+    setError,
     setValue,
     setFocus,
     handleSubmit,
@@ -161,6 +168,17 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
   const watchedHaveLicense = watch('have_business_license')
   const haveLicense = watchedHaveLicense === 'yes'
 
+  const showBusinessFieldError = (error: unknown) => {
+    if (!isAxiosError<BusinessFieldErrorResponse>(error)) return
+    const { field, message } = error.response?.data ?? {}
+    if (
+      field !== 'lei' ||
+      typeof message !== 'string'
+    ) return
+    setError(field, { type: 'server', message })
+    setFocus(field)
+  }
+
   const onSubmit = (values: BusinessInfoForm) => {
     const isExistingMerchant =
       draft.data?.registration_status === 'Draft' ||
@@ -174,9 +192,12 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
           status: 'error',
         })
       }
-      updateBusinessInfo.mutate({ params: values, merchantId })
+      updateBusinessInfo.mutate(
+        { params: values, merchantId },
+        { onError: showBusinessFieldError }
+      )
     } else {
-      createBusinessInfo.mutate(values)
+      createBusinessInfo.mutate(values, { onError: showBusinessFieldError })
     }
   }
 
@@ -229,7 +250,8 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             register={register}
             errors={errors}
             label='Legal Entity Identifier (LEI)'
-            placeholder='LEI (up to 20 characters)'
+            placeholder='Optional 20-character LEI'
+            inputProps={{ maxLength: 20 }}
           />
 
           <FormSelect

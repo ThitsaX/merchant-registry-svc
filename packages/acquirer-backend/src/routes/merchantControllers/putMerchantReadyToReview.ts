@@ -123,8 +123,9 @@ export async function putMerchantStatusReadyToReview (req: AuthRequest, res: Res
     merchant.registration_status = MerchantRegistrationStatus.REVIEW
     merchant.registration_status_reason = 'Ready to Review'
 
-    // Set GLEIF verification timestamp if not already set
-    if (merchant.gleif_verified_at === null || merchant.gleif_verified_at === undefined) {
+    // A merchant without an LEI has nothing to mark as GLEIF-verified.
+    if ((merchant.lei?.trim().length ?? 0) > 0 &&
+      (merchant.gleif_verified_at === null || merchant.gleif_verified_at === undefined)) {
       merchant.gleif_verified_at = new Date()
     }
 

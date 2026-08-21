@@ -22,6 +22,12 @@ import {
   isRequestedMerchantAliasAvailable,
   saveRequestedMerchantAlias
 } from '../../services/merchantAlias'
+import {
+  findGlobalMerchantLeiRegistration,
+  isMerchantLeiUniqueConstraintError,
+  merchantLeiConflictResponse,
+  normalizeMerchantLei
+} from '../../services/merchantLei'
 
 /**
  * @openapi
@@ -47,6 +53,9 @@ import {
  *                 example: "Merchant 1"
  *               lei:
  *                 type: string
+ *                 minLength: 20
+ *                 maxLength: 20
+ *                 pattern: '^[A-Za-z0-9]{20}$'
  *               employees_num:
  *                 type: string
  *                 example: "1 - 5"
@@ -121,6 +130,28 @@ export async function postMerchantDraft (req: AuthRequest, res: Response) {
   if (validationError !== null && validationError !== undefined) {
     return res.status(422).send(validationError)
   }
+  req.body.lei = normalizeMerchantLei(req.body.lei)
+
+  try {
+    const leiRegistration = await findGlobalMerchantLeiRegistration(req.body.lei)
+    if (leiRegistration !== null) {
+      await audit(
+        AuditActionType.ADD,
+        AuditTrasactionStatus.FAILURE,
+        'postMerchantDraft',
+        'LEI is already registered',
+        'Merchant',
+        {}, { lei: req.body.lei, registered_dfsps: leiRegistration.dfsps }, portalUser
+      )
+      return res.status(409).send(merchantLeiConflictResponse(leiRegistration))
+    }
+  } catch (error) {
+    logger.error('Unable to verify LEI availability: %o', error)
+    return res.status(503).send({
+      message: 'Unable to verify LEI availability. Please try again.',
+      field: 'lei'
+    })
+  }
 
   try {
     const aliasAvailable = await isRequestedMerchantAliasAvailable(req.body.payinto_alias)
@@ -147,7 +178,7 @@ export async function postMerchantDraft (req: AuthRequest, res: Response) {
     })
   }
 
-  // Validate LEI if provided
+  // Validate the LEI with GLEIF when one was provided.
   const leiValidationError = await validateLEIIfProvided(req.body, portalUser)
   if (leiValidationError !== null && leiValidationError !== undefined) {
     return res.status(422).send(leiValidationError)
@@ -165,8 +196,14 @@ export async function postMerchantDraft (req: AuthRequest, res: Response) {
     req.body.license_number,
     req.body.payinto_alias
   )
-  if (saveError !== null && saveError !== undefined && saveError !== '') {
-    return res.status(500).send({ message: saveError })
+  if (saveError !== null) {
+    if (saveError.field === 'lei') {
+      const concurrentRegistration = await findGlobalMerchantLeiRegistration(req.body.lei)
+      return concurrentRegistration === null
+        ? res.status(409).send({ message: saveError.message, field: 'lei' })
+        : res.status(409).send(merchantLeiConflictResponse(concurrentRegistration))
+    }
+    return res.status(500).send({ message: saveError.message })
   }
 
   // Prepare and send response
@@ -210,19 +247,9 @@ async function handleValidationError (err: any, body: any, portalUser: any) {
 /**
  * Check if LEI should be validated
  */
-function shouldValidateLEI (lei: string): boolean {
-  return lei !== null && lei !== undefined && lei !== ''
-}
-
-/**
- * Validate LEI if provided
- */
+/** Validate an optional LEI. */
 async function validateLEIIfProvided (body: any, portalUser: any) {
-  if (!shouldValidateLEI(body.lei)) {
-    logger.info('No LEI provided, skipping validation')
-    return null
-  }
-
+  if (body.lei.length === 0) return null
   logger.info('Starting LEI validation for: %s', body.lei)
   return await performLEIValidation(body, portalUser)
 }
@@ -232,7 +259,6 @@ async function validateLEIIfProvided (body: any, portalUser: any) {
  */
 async function performLEIValidation (body: any, portalUser: any) {
   try {
-    console.log(body.dba_trading_name)
     const leiValidation = await gleifService.validateLEI(body.lei, body.dba_trading_name ?? '')
 
     if (!leiValidation.isValid) {
@@ -284,7 +310,8 @@ function createMerchantEntity (merchantRepository: any, body: any, portalUser: a
 
   merchant.dba_trading_name = body.dba_trading_name
   merchant.registered_name = body.registered_name // TODO: check if already registered
-  merchant.lei = body.lei
+  merchant.lei = body.lei.length > 0 ? body.lei : null
+  merchant.lei_normalized = body.lei.length > 0 ? body.lei : null
   merchant.employees_num = body.employees_num
   merchant.monthly_turnover = body.monthly_turnover
   merchant.currency_code = body.currency_code
@@ -300,7 +327,7 @@ function createMerchantEntity (merchantRepository: any, body: any, portalUser: a
   merchant.allow_block_status = MerchantAllowBlockStatus.PENDING
   merchant.dfsps = [portalUser.dfsp]
   merchant.default_dfsp = portalUser.dfsp
-  merchant.gleif_verified_at = new Date()
+  merchant.gleif_verified_at = body.lei.length > 0 ? new Date() : null
 
   if (portalUser !== null) {
     merchant.created_by = portalUser
@@ -318,7 +345,7 @@ async function saveMerchantWithLicense (
   file: any,
   licenseNumber: string,
   requestedAlias: unknown
-): Promise<string | null> {
+): Promise<{ message: string, field?: 'lei' } | null> {
   try {
     await merchantRepository.save(merchant)
     await saveRequestedMerchantAlias(merchant, requestedAlias)
@@ -336,7 +363,10 @@ async function saveMerchantWithLicense (
     await merchantRepository.save(merchant)
     return null
   } catch (err) {
-    return formatSaveError(err)
+    return {
+      message: formatSaveError(err),
+      field: isMerchantLeiUniqueConstraintError(err) ? 'lei' : undefined
+    }
   }
 }
 

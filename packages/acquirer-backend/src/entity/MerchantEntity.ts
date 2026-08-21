@@ -2,7 +2,7 @@ import {
   Entity,
   Column, JoinColumn, PrimaryGeneratedColumn,
   ManyToOne, OneToMany, ManyToMany,
-  CreateDateColumn, UpdateDateColumn, JoinTable
+  CreateDateColumn, UpdateDateColumn, JoinTable, Index
 } from 'typeorm'
 
 import { CurrencyEntity } from './CurrencyEntity'
@@ -22,6 +22,7 @@ import { ContactPersonEntity } from './ContactPersonEntity'
 import { DFSPEntity } from './DFSPEntity'
 
 @Entity('merchants')
+@Index('UQ_merchants_lei_normalized', ['lei_normalized'], { unique: true })
 export class MerchantEntity {
   @PrimaryGeneratedColumn()
     id!: number
@@ -32,8 +33,12 @@ export class MerchantEntity {
   @Column({ nullable: true, length: 255 })
     registered_name!: string
 
-  @Column({ nullable: true, length: 20 })
-    lei!: string
+  @Column({ type: 'varchar', nullable: true, length: 20 })
+    lei!: string | null
+
+  // Nullable so installations with legacy merchants can add the unique index safely.
+  @Column({ type: 'varchar', nullable: true, length: 20, select: false })
+    lei_normalized!: string | null
 
   @Column({ type: 'varchar', nullable: true, length: 4 })
     mcc!: string | null
@@ -79,7 +84,7 @@ export class MerchantEntity {
     registration_status_reason!: string
 
   @Column({ type: 'datetime', nullable: true })
-    gleif_verified_at!: Date
+    gleif_verified_at!: Date | null
 
   @Column({ nullable: false, default: 2 })
     next_checkout_counter_number!: number

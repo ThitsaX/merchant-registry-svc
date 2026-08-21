@@ -17,7 +17,16 @@ export const BusinessLicenseSubmitDataSchema = z.object({
 export const MerchantSubmitDataSchema = z.object({
   dba_trading_name: z.string().optional(),
   registered_name: z.string().optional().nullable().default(null),
-  lei: z.string().max(20).optional().nullable().default(null),
+  lei: z
+    .string()
+    .trim()
+    .length(20, { message: 'LEI must be exactly 20 alphanumeric characters' })
+    .regex(/^[A-Za-z0-9]{20}$/, {
+      message: 'LEI must be exactly 20 alphanumeric characters'
+    })
+    .or(z.literal(''))
+    .optional()
+    .nullable(),
   employees_num: z.nativeEnum(NumberOfEmployees).optional(),
   monthly_turnover: z.string().nullable().default(null),
   currency_code: z.nativeEnum(CurrencyCodes).optional(),

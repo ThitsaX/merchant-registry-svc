@@ -13,10 +13,12 @@ import {
   addApprovedCheckoutCounter,
   approveMerchants,
   exportMerchants,
+  getBulkMerchantTemplate,
   getMerchant,
   getMerchants,
   rejectMerchants,
   retryApprovedCheckoutCounterRegistration,
+  uploadBulkMerchantWorkbook,
   revertMerchants,
   type ApprovedCheckoutCounterInput,
 } from '../merchants'
@@ -35,6 +37,11 @@ interface AddCheckoutCounterParams {
 interface RetryCheckoutCounterParams {
   merchantId: number
   counterId: number
+}
+
+interface BulkMerchantUploadParams {
+  file: File
+  idempotencyKey: string
 }
 
 function mutationErrorMessage(error: unknown): string {
@@ -269,6 +276,42 @@ export function useRetryApprovedCheckoutCounterRegistration() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['merchants', variables.merchantId] })
+    },
+  })
+}
+
+export function useBulkMerchantUpload() {
+  const queryClient = useQueryClient()
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: ({ file, idempotencyKey }: BulkMerchantUploadParams) =>
+      uploadBulkMerchantWorkbook(file, idempotencyKey),
+    onSuccess: response => {
+      queryClient.invalidateQueries({ queryKey: ['drafts'] })
+      queryClient.invalidateQueries({ queryKey: ['pending-merchants'] })
+      queryClient.invalidateQueries({ queryKey: ['all-merchants'] })
+      queryClient.invalidateQueries({ queryKey: ['draft-count'] })
+      toast({
+        title: 'Bulk merchant onboarding completed',
+        description: `${response.data.merchants_created} merchant(s) sent for review.`,
+        status: 'success',
+      })
+    },
+  })
+}
+
+export function useBulkMerchantTemplate() {
+  const toast = useToast()
+
+  return useMutation({
+    mutationFn: getBulkMerchantTemplate,
+    onError: () => {
+      toast({
+        title: 'Template download failed',
+        description: FALLBACK_ERROR_MESSAGE,
+        status: 'error',
+      })
     },
   })
 }

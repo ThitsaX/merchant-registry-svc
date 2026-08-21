@@ -1,3 +1,4 @@
+import { nextTestLei } from './testLei'
 import request from 'supertest'
 import { type Application } from 'express'
 import { DefaultDFSPUsers } from '../../src/database/defaultUsers'
@@ -19,6 +20,7 @@ export function testPutMerchantDraft (app: Application): void {
   const dfspUserPwd = DefaultDFSPUsers[0].password
   const dfspUserDFSPName = DefaultDFSPUsers[0].dfsp_name
   let merchantId: number
+  const merchantLei = nextTestLei()
 
   let differentDFSPUserToken = ''
   let differentDFSPUserEmail = ''
@@ -38,6 +40,7 @@ export function testPutMerchantDraft (app: Application): void {
     const createRes = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('dba_trading_name', 'Test Merchant')
       .field('registered_name', 'Test Merchant Registered')
       .field('employees_num', '1 - 5')
@@ -86,6 +89,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', 'Bearer invalid_token')
+      .field('lei', merchantLei)
     expect(res.statusCode).toEqual(401)
   })
 
@@ -107,6 +111,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('merchant_type', 'non-existing-merchant-type')
 
     expect(res.statusCode).toEqual(422)
@@ -126,6 +131,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${differentDFSPUserToken}`)
+      .field('lei', merchantLei)
       .field('dba_trading_name', 'Updated Trading Name')
       .field('registered_name', 'Updated Registered Name')
       .field('employees_num', NumberOfEmployees.SIX_TO_TEN)
@@ -149,6 +155,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('dba_trading_name', 'Updated Trading Name')
       .field('registered_name', 'Updated Registered Name')
       .field('employees_num', NumberOfEmployees.SIX_TO_TEN)
@@ -173,6 +180,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('payinto_alias', 'LBR-MER-EXISTING')
 
     expect(res.statusCode).toEqual(409)
@@ -186,6 +194,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('dba_trading_name', 'Updated Trading Name')
       .field('registered_name', 'Updated Registered Name')
       .field('employees_num', NumberOfEmployees.SIX_TO_TEN)
@@ -230,6 +239,7 @@ export function testPutMerchantDraft (app: Application): void {
     const res = await request(app)
       .put(`/api/v1/merchants/${merchantId}/draft`)
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', merchantLei)
       .field('dba_trading_name', 'Updated Trading Name 2')
       .field('registered_name', 'Updated Registered Name 2')
       .field('employees_num', NumberOfEmployees.SIX_TO_TEN)

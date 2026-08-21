@@ -36,6 +36,8 @@ See the README.md file on each services for more Environment Variable Configurat
 
 For end-to-end local setup, Hub and DFSP user provisioning, and merchant
 registration, see the [onboarding guide](./docs/onboarding-guide.md).
+For Excel-based multi-record onboarding, see the
+[bulk merchant onboarding guide](./docs/bulk-merchant-onboarding.md).
 
 * Requirements
     - Docker Engine with Docker Compose v2 (`docker compose`)

@@ -1,3 +1,4 @@
+import { nextTestLei } from './testLei'
 import request from 'supertest'
 import { type Application } from 'express'
 import { MerchantRegistrationStatus, NumberOfEmployees } from 'shared-lib'
@@ -24,6 +25,7 @@ export function testPostApprovedCheckoutCounter (app: Application): void {
     const draft = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Approved Counter Test Merchant')
       .field('registered_name', 'Approved Counter Test Merchant')
       .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)

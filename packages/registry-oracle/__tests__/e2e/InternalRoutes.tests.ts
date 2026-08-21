@@ -189,6 +189,75 @@ export function internalRoutesTests (app: Application): void {
     expect(incompleteOwner.status).toBe(400)
   })
 
+  it('finds LEI owners and rejects registration by a different DFSP', async () => {
+    const lei = 'ORACLELEI00000000001'
+    const register = async (
+      merchantId: number,
+      counterId: number,
+      fspId: string,
+      dfspName: string,
+      alias: string,
+      key: string
+    ) => await request(app)
+      .post('/internal/v1/merchants/registrations')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+      .set('Idempotency-Key', key)
+      .send({
+        merchants: [{
+          merchant_id: merchantId,
+          checkout_counter_id: counterId,
+          fspId,
+          dfsp_name: dfspName,
+          lei,
+          alias_value: alias,
+          currency_code: { iso_code: 'USD', description: 'US Dollar' }
+        }]
+      })
+
+    expect((await register(
+      77901,
+      77911,
+      'lei-owner-fsp',
+      'LEI Owner Bank',
+      'LEI-OWNER-COUNTER-1',
+      'lei-owner-1'
+    )).status).toBe(200)
+
+    const lookup = await request(app)
+      .post('/internal/v1/merchant-leis/registrations/query')
+      .set('x-internal-api-key', INTERNAL_API_KEY)
+      .send({ leis: [lei.toLowerCase()] })
+    expect(lookup.status).toBe(200)
+    expect(lookup.body.data).toEqual([{
+      lei,
+      merchant_id: 77901,
+      fspId: 'lei-owner-fsp',
+      dfsp_name: 'LEI Owner Bank'
+    }])
+
+    expect((await register(
+      77901,
+      77912,
+      'lei-owner-fsp',
+      'LEI Owner Bank',
+      'LEI-OWNER-COUNTER-2',
+      'lei-owner-2'
+    )).status).toBe(200)
+
+    const conflict = await register(
+      77902,
+      77913,
+      'other-fsp',
+      'Other Bank',
+      'OTHER-BANK-COUNTER',
+      'lei-other-bank'
+    )
+    expect(conflict.status).toBe(409)
+    expect(conflict.body.message).toBe(
+      `LEI "${lei}" is already registered with DFSP "LEI Owner Bank" (lei-owner-fsp)`
+    )
+  })
+
   it('replays DFSP credential registration without duplicate credentials', async () => {
     const register = async () => await request(app)
       .put('/internal/v1/dfsps/fsp-credential/access-credential')

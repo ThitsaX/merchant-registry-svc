@@ -245,6 +245,7 @@ export const createBusinessInfoMerchant = (
       iso_code: 'ALL' as CurrencyCodes,
     },
     dba_trading_name: 'marco',
+    lei: 'TESTLEI0000000000001',
     employees_num: '6 - 10' as NumberOfEmployees,
     merchant_type: 'Small Shop' as MerchantType,
     monthly_turnover: '',

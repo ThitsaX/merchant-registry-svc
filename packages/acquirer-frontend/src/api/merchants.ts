@@ -9,6 +9,27 @@ export interface ApprovedCheckoutCounterInput {
   alias_value?: string
 }
 
+export interface BulkMerchantWorkbookError {
+  sheet: string
+  row: number
+  field: string
+  message: string
+}
+
+export interface BulkMerchantImportResult {
+  import_id: number
+  merchants_created: number
+  locations_created: number
+  checkout_counters_created: number
+  business_owners_created: number
+  contact_persons_created: number
+  merchant_ids: Array<{
+    merchant_reference: string
+    merchant_id: number
+  }>
+  idempotent_replay?: boolean
+}
+
 export async function getMerchants(params: AllMerchantsFilterForm | MerchantsFilterForm) {
   const response = await instance.get<{ data: MerchantDetails[]; totalPages: number }>(
     '/merchants',
@@ -24,6 +45,28 @@ export async function getMerchant(merchantId: number) {
     `/merchants/${merchantId}`
   )
   return response.data.data
+}
+
+export async function getBulkMerchantTemplate() {
+  const response = await instance.get<Blob>('/merchants/bulk-upload/template', {
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+export async function uploadBulkMerchantWorkbook(
+  file: File,
+  idempotencyKey: string
+) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await instance.post<{
+    message: string
+    data: BulkMerchantImportResult
+  }>('/merchants/bulk-upload', formData, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+  return response.data
 }
 
 export async function addApprovedCheckoutCounter(

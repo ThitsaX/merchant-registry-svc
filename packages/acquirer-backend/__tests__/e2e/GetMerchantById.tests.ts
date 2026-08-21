@@ -1,3 +1,4 @@
+import { nextTestLei } from './testLei'
 import request from 'supertest'
 import { type Application } from 'express'
 import { DefaultDFSPUsers } from '../../src/database/defaultUsers'
@@ -34,6 +35,7 @@ export function testGetMerchantById (app: Application): void {
     const res2 = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Merchat70')
       .field('registered_name', 'Registered Merchant 55')
       .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)
@@ -61,6 +63,7 @@ export function testGetMerchantById (app: Application): void {
         const res4 = await request(app)
           .post('/api/v1/merchants/draft')
           .set('Authorization', `Bearer ${differentDFSPUserToken}`)
+          .field('lei', nextTestLei())
           .field('dba_trading_name', 'Merchat77')
           .field('registered_name', 'Registered Merchant 55')
           .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)

@@ -10,6 +10,7 @@ import {
 @Entity('registry')
 @Index(['merchant_id', 'checkout_counter_id'], { unique: true })
 @Index(['alias_value'], { unique: true })
+@Index(['lei'])
 export class RegistryEntity {
   @PrimaryGeneratedColumn()
     id!: number

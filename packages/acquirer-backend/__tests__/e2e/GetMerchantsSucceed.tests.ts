@@ -1,5 +1,6 @@
 /* eslint-disable max-len */
 
+import { nextTestLei } from './testLei'
 import request from 'supertest'
 import path from 'path'
 import fs from 'fs'
@@ -31,6 +32,7 @@ export function testGetMerchantsSucceed (app: Application): void {
     res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'TestName')
       .field('registered_name', 'Some Registered Name')
       .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)
@@ -46,6 +48,7 @@ export function testGetMerchantsSucceed (app: Application): void {
     res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'TestName2')
       .field('registered_name', 'Some Registered Name 2')
       .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)
@@ -61,6 +64,7 @@ export function testGetMerchantsSucceed (app: Application): void {
     res = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${token}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Some Trading Name')
       .field('registered_name', 'Some Registered Name')
       .field('employees_num', NumberOfEmployees.SIX_TO_TEN)

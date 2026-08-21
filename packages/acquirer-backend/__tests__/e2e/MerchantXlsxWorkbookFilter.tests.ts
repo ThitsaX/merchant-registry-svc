@@ -1,3 +1,4 @@
+import { nextTestLei } from './testLei'
 /* eslint-disable max-len */
 import request from 'supertest'
 import { type Application } from 'express'
@@ -27,6 +28,7 @@ export function testGETMerchantXlsxWorkbookFilter (app: Application): void {
     const res4 = await request(app)
       .post('/api/v1/merchants/draft')
       .set('Authorization', `Bearer ${dfspUserToken}`)
+      .field('lei', nextTestLei())
       .field('dba_trading_name', 'Merchat55')
       .field('registered_name', 'Registered Merchant 55')
       .field('employees_num', NumberOfEmployees.ONE_TO_FIVE)

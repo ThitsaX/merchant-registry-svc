@@ -26,10 +26,13 @@ import {
   postApprovedCheckoutCounter,
   postApprovedCheckoutCounterRegistration
 } from './merchantControllers/postApprovedCheckoutCounter'
+import { getMerchantBulkTemplate } from './merchantControllers/getMerchantBulkTemplate'
+import { postMerchantBulkUpload } from './merchantControllers/postMerchantBulkUpload'
 
 import { authenticateJWT } from '../middleware/authenticate'
 import { checkPermissions } from '../middleware/checkPermissions'
 import { PermissionsEnum } from '../types/permissions'
+import { merchantWorkbookUpload } from '../middleware/merchantWorkbookUpload'
 
 const router = express.Router()
 
@@ -55,6 +58,19 @@ router.get('/merchants/export-with-filter',
   authenticateJWT,
   checkPermissions(PermissionsEnum.EXPORT_MERCHANTS),
   exportMerchantFilterXlsx
+)
+
+router.get('/merchants/bulk-upload/template',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.CREATE_MERCHANTS),
+  getMerchantBulkTemplate
+)
+
+router.post('/merchants/bulk-upload',
+  authenticateJWT,
+  checkPermissions(PermissionsEnum.CREATE_MERCHANTS),
+  merchantWorkbookUpload,
+  postMerchantBulkUpload
 )
 
 router.post('/merchants/draft',

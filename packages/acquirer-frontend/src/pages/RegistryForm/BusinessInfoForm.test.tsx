@@ -6,6 +6,7 @@ import type { MerchantDetails } from '@/types/merchantDetails'
 import { createBusinessInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
 import BusinessInfoForm from './BusinessInfoForm'
+import { businessInfoSchema } from '@/lib/validations/registry'
 
 const draft = createBusinessInfoMerchant({
   checkout_counters: [
@@ -41,6 +42,11 @@ vi.mock('@/hooks', () => ({
 }))
 
 let draftData: MerchantDetails | null = null
+let businessMutationError: unknown = null
+
+interface MutationOptions {
+  onError?: (error: unknown) => void
+}
 
 vi.mock('@/api/hooks/forms', () => ({
   useDraft: () => ({
@@ -50,11 +56,17 @@ vi.mock('@/api/hooks/forms', () => ({
     isFetching: false,
   }),
   useCreateBusinessInfo: () => ({
-    mutate: () => fn('createBusinessInfo'),
+    mutate: (_payload: unknown, options?: MutationOptions) => {
+      fn('createBusinessInfo')
+      if (businessMutationError) options?.onError?.(businessMutationError)
+    },
     isPending: false,
   }),
   useUpdateBusinessInfo: () => ({
-    mutate: () => fn('updateBusinessInfo'),
+    mutate: (_payload: unknown, options?: MutationOptions) => {
+      fn('updateBusinessInfo')
+      if (businessMutationError) options?.onError?.(businessMutationError)
+    },
     isPending: false,
   }),
 }))
@@ -65,6 +77,7 @@ describe('BusinessInfoForm', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     draftData = null
+    businessMutationError = null
   })
 
   beforeEach(() => {
@@ -168,16 +181,40 @@ describe('BusinessInfoForm', () => {
     expect(licenseNumberInput.value).toEqual('1234')
   })
 
-  it('does not edit the primary alias on the business step', () => {
+  it('allows a blank LEI and shows cross-DFSP errors for supplied LEIs', async () => {
+    expect(businessInfoSchema.safeParse({
+      dba_trading_name: 'Merchant',
+      employees_num: '6 - 10',
+      category_code: '10120',
+      mcc: '5812',
+      merchant_type: 'Small Shop',
+      currency_code: 'ALL',
+      license_document: null,
+    }).success).toBe(true)
+
     draftData = draft
+    mockMerchantId.mockReturnValue(1)
+    businessMutationError = {
+      isAxiosError: true,
+      response: {
+        data: {
+          field: 'lei',
+          message: 'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)',
+        },
+      },
+    }
 
     render(
       <TestWrapper>
         <BusinessInfoForm setActiveStep={mockSetActiveStep} />
       </TestWrapper>
     )
+    fireEvent.click(screen.getByText('Save and Proceed'))
 
-    expect(screen.queryByLabelText(/Primary Checkout Counter Alias/)).not.toBeInTheDocument()
+    expect(await screen.findByText(
+      'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)'
+    )).toBeInTheDocument()
+    expect(screen.getByLabelText(/Legal Entity Identifier/)).toEqual(document.activeElement)
   })
 
   it('should search and select a business activity', async () => {
@@ -244,6 +281,7 @@ describe('BusinessInfoForm', () => {
     )
 
     const dbaNameInput: HTMLInputElement = screen.getByLabelText(/Doing Business As Name/)
+    const leiInput: HTMLInputElement = screen.getByLabelText(/Legal Entity Identifier/)
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
     const merchantCategoryInput: HTMLInputElement =
@@ -255,6 +293,7 @@ describe('BusinessInfoForm', () => {
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
 
     fireEvent.change(dbaNameInput, { target: { value: 'marco' } })
+    fireEvent.change(leiInput, { target: { value: 'TESTLEI0000000000002' } })
     fireEvent.change(numberOfEmployeeInput, { target: { value: '6 - 10' } })
     fireEvent.change(merchantCategoryInput, { target: { value: '10120' } })
     fireEvent.change(mccInput, { target: { value: '5812' } })

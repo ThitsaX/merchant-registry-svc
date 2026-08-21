@@ -8,8 +8,10 @@ import {
 import {
   type MerchantData,
   InvalidMerchantAliasError,
+  getMerchantLeiRegistrations,
   isMerchantAliasAvailable,
   MerchantAliasConflictError,
+  MerchantLeiConflictError,
   registerMerchants
 } from '../services/registerMerchant'
 import { registerEndpointDFSP } from '../services/registerEndpointDFSP'
@@ -96,7 +98,7 @@ function handleError (error: unknown, res: Response): void {
     res.status(409).send({ message: error.message })
     return
   }
-  if (error instanceof MerchantAliasConflictError) {
+  if (error instanceof MerchantAliasConflictError || error instanceof MerchantLeiConflictError) {
     res.status(409).send({ message: error.message })
     return
   }
@@ -131,6 +133,31 @@ router.post('/internal/v1/merchants/registrations', async (req: Request, res: Re
     )
     res.setHeader('Idempotency-Replayed', String(result.replayed))
     res.status(result.statusCode).send({ data: result.data })
+  } catch (error) {
+    handleError(error, res)
+  }
+})
+
+router.post('/internal/v1/merchant-leis/registrations/query', async (req: Request, res: Response) => {
+  const requestBody = req.body as unknown
+  const rawLeis = requestBody !== null && typeof requestBody === 'object'
+    ? (requestBody as { leis?: unknown }).leis
+    : undefined
+  if (
+    !Array.isArray(rawLeis) ||
+    rawLeis.length === 0 ||
+    rawLeis.length > 500 ||
+    !rawLeis.every(lei => typeof lei === 'string' && /^[A-Za-z0-9]{20}$/.test(lei.trim()))
+  ) {
+    res.status(400).send({
+      message: 'leis must contain between 1 and 500 valid 20-character LEIs'
+    })
+    return
+  }
+
+  try {
+    const registrations = await getMerchantLeiRegistrations(rawLeis as string[])
+    res.status(200).send({ data: registrations })
   } catch (error) {
     handleError(error, res)
   }

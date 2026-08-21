@@ -20,7 +20,16 @@ export const businessInfoSchema = z
   .object({
     dba_trading_name: z.string().trim().min(1, { message: 'Business name is required' }),
     registered_name: z.string().optional(),
-    lei: z.string().max(20, { message: 'LEI cannot exceed 20 characters' }).optional(),
+    lei: z
+      .string()
+      .trim()
+      .length(20, { message: 'LEI must be exactly 20 alphanumeric characters' })
+      .regex(/^[A-Za-z0-9]{20}$/, {
+        message: 'LEI must be exactly 20 alphanumeric characters',
+      })
+      .or(z.literal(''))
+      .optional()
+      .transform(value => value?.toUpperCase() ?? ''),
     employees_num: z.nativeEnum(NumberOfEmployees, {
       errorMap: () => ({ message: 'Please select an option' }),
     }),

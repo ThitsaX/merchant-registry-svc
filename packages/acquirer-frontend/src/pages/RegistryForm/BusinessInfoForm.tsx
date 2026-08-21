@@ -315,13 +315,6 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             options={CURRENCIES}
           />
 
-          <FormInput
-            name='account_number'
-            register={register}
-            errors={errors}
-            label='Account Number'
-            placeholder='Account Number'
-          />
         </GridShell>
 
         <GridShell justifyItems='center'>

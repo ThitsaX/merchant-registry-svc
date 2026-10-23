@@ -38,6 +38,8 @@ export async function createBusinessInfo(values: BusinessInfoForm) {
   Object.entries(values).forEach(([key, value]) => {
     if (value instanceof File || typeof value === 'string') {
       formData.append(key, value)
+    } else if (Array.isArray(value)) {
+      value.forEach(item => formData.append(key, item))
     }
   })
 
@@ -52,6 +54,8 @@ export async function updateBusinessInfo(values: BusinessInfoForm, merchantId: s
   Object.entries(values).forEach(([key, value]) => {
     if (value instanceof File || typeof value === 'string') {
       formData.append(key, value)
+    } else if (Array.isArray(value)) {
+      value.forEach(item => formData.append(key, item))
     }
   })
 

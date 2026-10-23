@@ -12,7 +12,8 @@ export interface IMerchantSubmitData {
   registration_status_reason?: string
   // created_by: number; // will be set by the backend
   // checked_by: number; // will be set by the backend
-  currency_code: string
+  currency_code?: string
+  currency_codes?: string[]
   category_code: string
   mcc?: string
   payinto_alias?: string // Will create a new CheckoutCounterEntity if provided.
@@ -37,7 +38,9 @@ export interface ILocationSubmitData {
   post_box?: string
   postal_code?: string
   town_name?: string
+  city_name?: string
   district_name?: string
+  clan_name?: string
   country_subdivision?: string
   country?: string
   address_line?: string

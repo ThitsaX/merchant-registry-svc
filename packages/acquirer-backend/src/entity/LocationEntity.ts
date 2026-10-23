@@ -40,7 +40,13 @@ export class LocationEntity {
     town_name!: string
 
   @Column({ nullable: true, length: 255 })
+    city_name!: string
+
+  @Column({ nullable: true, length: 255 })
     district_name!: string
+
+  @Column({ nullable: true, length: 255 })
+    clan_name!: string
 
   @Column({ nullable: true, length: 255 })
     country_subdivision!: string

@@ -3,10 +3,10 @@ import { vi } from 'vitest'
 import type { MerchantRegistrationStatus } from 'shared-lib'
 
 import type { MerchantDetails } from '@/types/merchantDetails'
+import { businessInfoSchema } from '@/lib/validations/registry'
 import { createBusinessInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
 import BusinessInfoForm from './BusinessInfoForm'
-import { businessInfoSchema } from '@/lib/validations/registry'
 
 const draft = createBusinessInfoMerchant({
   checkout_counters: [
@@ -56,8 +56,8 @@ vi.mock('@/api/hooks/forms', () => ({
     isFetching: false,
   }),
   useCreateBusinessInfo: () => ({
-    mutate: (_payload: unknown, options?: MutationOptions) => {
-      fn('createBusinessInfo')
+    mutate: (payload: unknown, options?: MutationOptions) => {
+      fn('createBusinessInfo', payload)
       if (businessMutationError) options?.onError?.(businessMutationError)
     },
     isPending: false,
@@ -156,12 +156,15 @@ describe('BusinessInfoForm', () => {
       screen.getByLabelText(/Number of Employee/)
     const monthlyTurnOverInput: HTMLInputElement =
       screen.getByLabelText(/Monthly Turn Over/)
-    const merchantCategoryInput: HTMLInputElement =
-      screen.getByLabelText(/Business Activity/, { selector: 'input' })
-    const mccInput: HTMLInputElement =
-      screen.getByLabelText(/Payment Category/, { selector: 'input' })
+    const merchantCategoryInput: HTMLInputElement = screen.getByLabelText(
+      /Business Activity/,
+      { selector: 'input' }
+    )
+    const mccInput: HTMLInputElement = screen.getByLabelText(/Payment Category/, {
+      selector: 'input',
+    })
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
-    const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
+    const currencyInput: HTMLButtonElement = screen.getByLabelText(/Currency/)
     const radioYesInput: HTMLInputElement = screen.getByLabelText('Yes')
     const radioNoInput: HTMLInputElement = screen.getByLabelText('No')
     const licenseNumberInput: HTMLInputElement = screen.getByLabelText(/License Number/)
@@ -173,7 +176,7 @@ describe('BusinessInfoForm', () => {
     expect(merchantCategoryInput.value).toEqual('10120')
     expect(mccInput.value).toEqual('5812')
     expect(merchantTypeInput.value).toEqual('Small Shop')
-    expect(currencyInput.value).toEqual('ALL')
+    expect(currencyInput).toHaveTextContent('ALL (Lek)')
     expect(screen.queryByLabelText(/Account Number/)).not.toBeInTheDocument()
     expect(radioYesInput.checked).toEqual(true)
     expect(radioNoInput.checked).toEqual(false)
@@ -181,15 +184,17 @@ describe('BusinessInfoForm', () => {
   })
 
   it('allows a blank LEI and shows cross-DFSP errors for supplied LEIs', async () => {
-    expect(businessInfoSchema.safeParse({
-      dba_trading_name: 'Merchant',
-      employees_num: '6 - 10',
-      category_code: '10120',
-      mcc: '5812',
-      merchant_type: 'Small Shop',
-      currency_code: 'ALL',
-      license_document: null,
-    }).success).toBe(true)
+    expect(
+      businessInfoSchema.safeParse({
+        dba_trading_name: 'Merchant',
+        employees_num: '6 - 10',
+        category_code: '10120',
+        mcc: '5812',
+        merchant_type: 'Small Shop',
+        currency_codes: ['ALL'],
+        license_document: null,
+      }).success
+    ).toBe(true)
 
     draftData = draft
     mockMerchantId.mockReturnValue(1)
@@ -198,7 +203,8 @@ describe('BusinessInfoForm', () => {
       response: {
         data: {
           field: 'lei',
-          message: 'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)',
+          message:
+            'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)',
         },
       },
     }
@@ -210,10 +216,14 @@ describe('BusinessInfoForm', () => {
     )
     fireEvent.click(screen.getByText('Save and Proceed'))
 
-    expect(await screen.findByText(
-      'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)'
-    )).toBeInTheDocument()
-    expect(screen.getByLabelText(/Legal Entity Identifier/)).toEqual(document.activeElement)
+    expect(
+      await screen.findByText(
+        'LEI "TESTLEI0000000000001" is already registered with DFSP "GreenBank" (greenbank)'
+      )
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/Legal Entity Identifier/)).toEqual(
+      document.activeElement
+    )
   })
 
   it('should search and select a business activity', async () => {
@@ -223,8 +233,10 @@ describe('BusinessInfoForm', () => {
       </TestWrapper>
     )
 
-    const businessActivityInput: HTMLInputElement =
-      screen.getByLabelText(/Business Activity/, { selector: 'input' })
+    const businessActivityInput: HTMLInputElement = screen.getByLabelText(
+      /Business Activity/,
+      { selector: 'input' }
+    )
 
     fireEvent.focus(businessActivityInput)
     fireEvent.change(businessActivityInput, { target: { value: 'rice' } })
@@ -283,12 +295,15 @@ describe('BusinessInfoForm', () => {
     const leiInput: HTMLInputElement = screen.getByLabelText(/Legal Entity Identifier/)
     const numberOfEmployeeInput: HTMLSelectElement =
       screen.getByLabelText(/Number of Employee/)
-    const merchantCategoryInput: HTMLInputElement =
-      screen.getByLabelText(/Business Activity/, { selector: 'input' })
-    const mccInput: HTMLInputElement =
-      screen.getByLabelText(/Payment Category/, { selector: 'input' })
+    const merchantCategoryInput: HTMLInputElement = screen.getByLabelText(
+      /Business Activity/,
+      { selector: 'input' }
+    )
+    const mccInput: HTMLInputElement = screen.getByLabelText(/Payment Category/, {
+      selector: 'input',
+    })
     const merchantTypeInput: HTMLSelectElement = screen.getByLabelText(/Merchant Type/)
-    const currencyInput: HTMLSelectElement = screen.getByLabelText(/Currency/)
+    const currencyInput: HTMLButtonElement = screen.getByLabelText(/Currency/)
     const submitButton: HTMLButtonElement = screen.getByText('Save and Proceed')
 
     fireEvent.change(dbaNameInput, { target: { value: 'marco' } })
@@ -297,10 +312,17 @@ describe('BusinessInfoForm', () => {
     fireEvent.change(merchantCategoryInput, { target: { value: '10120' } })
     fireEvent.change(mccInput, { target: { value: '5812' } })
     fireEvent.change(merchantTypeInput, { target: { value: 'Small Shop' } })
-    fireEvent.change(currencyInput, { target: { value: 'ALL' } })
+    fireEvent.click(currencyInput)
+    fireEvent.click(screen.getByText('USD (US Dollar)'))
+    fireEvent.click(screen.getByText('LRD (Liberian Dollar)'))
     fireEvent.click(submitButton)
 
-    await waitFor(() => expect(fn).toHaveBeenCalledWith('createBusinessInfo'))
+    await waitFor(() =>
+      expect(fn).toHaveBeenCalledWith(
+        'createBusinessInfo',
+        expect.objectContaining({ currency_codes: ['USD', 'LRD'] })
+      )
+    )
   })
 
   it('should call "updateBusinessInfo.mutate" when it is a draft or reverted data', async () => {

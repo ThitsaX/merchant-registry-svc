@@ -88,7 +88,9 @@ const locationFields = {
   post_box: optionalText(),
   postal_code: optionalText(),
   town_name: z.string().trim().min(1).max(255),
+  city_name: optionalText(),
   district_name: optionalText(),
+  clan_name: optionalText(),
   country_subdivision: optionalText(),
   country: z.string().trim().min(1).max(1024),
   address_line: optionalText(1024),
@@ -168,7 +170,7 @@ const SHEETS = {
       'merchant_reference', 'location_reference', 'location_type', 'web_url',
       'address_type', 'department', 'sub_department', 'street_name',
       'building_number', 'building_name', 'floor_number', 'room_number',
-      'post_box', 'postal_code', 'town_name', 'district_name',
+      'post_box', 'postal_code', 'town_name', 'city_name', 'district_name', 'clan_name',
       'country_subdivision', 'country', 'address_line', 'latitude', 'longitude'
     ]
   },
@@ -183,7 +185,8 @@ const SHEETS = {
       'identification_number', 'phone_number', 'email', 'address_type',
       'department', 'sub_department', 'street_name', 'building_number',
       'building_name', 'floor_number', 'room_number', 'post_box', 'postal_code',
-      'town_name', 'district_name', 'country_subdivision', 'country',
+      'town_name', 'city_name', 'district_name', 'clan_name',
+      'country_subdivision', 'country',
       'address_line', 'latitude', 'longitude'
     ]
   },

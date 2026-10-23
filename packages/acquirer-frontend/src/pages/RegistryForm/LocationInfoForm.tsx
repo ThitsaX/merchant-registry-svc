@@ -13,10 +13,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod'
 import { isAxiosError } from 'axios'
 import { useFieldArray, useForm } from 'react-hook-form'
-import {
-  MERCHANT_ALIAS_MAX_LENGTH,
-  MerchantLocationType,
-} from 'shared-lib'
+import { MERCHANT_ALIAS_MAX_LENGTH, MerchantLocationType } from 'shared-lib'
 
 import { locationInfoSchema, type LocationInfoForm } from '@/lib/validations/registry'
 import {
@@ -123,7 +120,9 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
         postal_code,
         country,
         town_name,
+        city_name,
         district_name,
+        clan_name,
         country_subdivision,
         longitude,
         latitude,
@@ -142,7 +141,9 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
       postal_code && setValue('postal_code', postal_code)
       country && setValue('country', country)
       town_name && setValue('town_name', town_name)
+      city_name && setValue('city_name', city_name)
       district_name && setValue('district_name', district_name)
+      clan_name && setValue('clan_name', clan_name)
       country_subdivision && setValue('country_subdivision', country_subdivision)
       longitude && setValue('longitude', longitude)
       latitude && setValue('latitude', latitude)
@@ -151,7 +152,8 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
     const locationCounters = draftData.checkout_counters?.filter(counter =>
       location == null
         ? counter.checkout_location == null
-        : counter.checkout_location == null || counter.checkout_location.id === location.id
+        : counter.checkout_location == null ||
+          counter.checkout_location.id === location.id
     )
     const counters = locationCounters?.length
       ? locationCounters.map((counter, index) => ({
@@ -260,6 +262,8 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
           districtOptions={districtOptions}
           headingText='Physical Business Address'
           requireQrLocationFields
+          includeCityAndClan
+          townLabel='Town'
         />
 
         <Stack spacing='4' pb={{ base: '8', sm: '12' }}>
@@ -268,12 +272,13 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
             <CustomButton
               colorVariant='accent-outline'
               onClick={() => {
-                const nextCounterNumber = Math.max(
-                  0,
-                  ...checkoutCounters.map((item, itemIndex) =>
-                    item.counter_number ?? itemIndex + 1
-                  )
-                ) + 1
+                const nextCounterNumber =
+                  Math.max(
+                    0,
+                    ...checkoutCounters.map(
+                      (item, itemIndex) => item.counter_number ?? itemIndex + 1
+                    )
+                  ) + 1
                 appendCheckoutCounter({
                   counter_number: nextCounterNumber,
                   description: '',
@@ -306,8 +311,7 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
                   <Text fontSize='sm' fontWeight='semibold'>
                     Counter {counterNumber}
                   </Text>
-                  {checkoutCounters.length > 1 &&
-                    !isPrimaryCounter && (
+                  {checkoutCounters.length > 1 && !isPrimaryCounter && (
                     <CustomButton
                       colorVariant='danger'
                       onClick={() => removeCheckoutCounter(index)}
@@ -317,7 +321,7 @@ const LocationInfoForm = ({ setActiveStep }: LocationInfoFormProps) => {
                     >
                       Remove
                     </CustomButton>
-                    )}
+                  )}
                 </HStack>
 
                 {typeof counter.id === 'number' && (

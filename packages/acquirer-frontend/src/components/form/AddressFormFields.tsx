@@ -24,6 +24,8 @@ export interface AddressFormValues {
   country_subdivision?: string
   district_name?: string
   town_name?: string
+  city_name?: string
+  clan_name?: string
   longitude?: string
   latitude?: string
 }
@@ -37,6 +39,8 @@ interface AddressFormFieldsProps<T extends FieldValues & AddressFormValues> {
   districtOptions?: Array<{ value: string; label: string }>
   headingText?: string
   requireQrLocationFields?: boolean
+  includeCityAndClan?: boolean
+  townLabel?: string
 }
 
 const AddressFormFields = <T extends FieldValues & AddressFormValues>({
@@ -48,6 +52,8 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
   districtOptions,
   headingText = 'Physical Address',
   requireQrLocationFields = false,
+  includeCityAndClan = false,
+  townLabel = 'Township',
 }: AddressFormFieldsProps<T>) => {
   return (
     <>
@@ -146,6 +152,16 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
           }}
         />
 
+        {includeCityAndClan && (
+          <FormInput<T>
+            name={'city_name' as Path<T>}
+            register={register}
+            errors={errors}
+            label='City'
+            placeholder='City'
+          />
+        )}
+
         <FormSelect<T>
           name={'country_subdivision' as Path<T>}
           register={register}
@@ -172,9 +188,19 @@ const AddressFormFields = <T extends FieldValues & AddressFormValues>({
           name={'town_name' as Path<T>}
           register={register}
           errors={errors}
-          label='Township'
-          placeholder='Township'
+          label={townLabel}
+          placeholder={townLabel}
         />
+
+        {includeCityAndClan && (
+          <FormInput<T>
+            name={'clan_name' as Path<T>}
+            register={register}
+            errors={errors}
+            label='Clan'
+            placeholder='Clan'
+          />
+        )}
 
         <FormInput<T>
           name={'longitude' as Path<T>}

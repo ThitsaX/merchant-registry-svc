@@ -2,8 +2,8 @@ apiVersion: v2
 name: merchant-registry
 description: Merchant registry, acquirer portal, and Mojaloop registry oracle
 type: application
-version: 1.1.1
-appVersion: "1.1.6"
+version: 1.1.10
+appVersion: "1.1.10"
 kubeVersion: ">=1.24.0-0"
 home: https://github.com/ThitsaX/merchant-registry-svc
 sources:
@@ -14,8 +14,8 @@ annotations:
   artifacthub.io/license: Apache-2.0
   artifacthub.io/images: |
     - name: acquirer-backend
-      image: ghcr.io/thitsax/merchant-acquirer-backend:v1.1.6
+      image: ghcr.io/thitsax/merchant-acquirer-backend:v1.1.10
     - name: acquirer-frontend
-      image: ghcr.io/thitsax/merchant-acquirer-frontend:v1.1.6
+      image: ghcr.io/thitsax/merchant-acquirer-frontend:v1.1.10
     - name: registry-oracle
-      image: ghcr.io/thitsax/merchant-registry-oracle:v1.1.6
+      image: ghcr.io/thitsax/merchant-registry-oracle:v1.1.10

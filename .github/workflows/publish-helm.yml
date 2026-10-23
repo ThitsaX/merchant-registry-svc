@@ -8,11 +8,11 @@ on:
       chart_version:
         description: Helm chart version to publish
         required: true
-        default: 1.1.1
+        default: 1.1.10
       app_version:
         description: Merchant image version used by the chart
         required: true
-        default: 1.1.6
+        default: 1.1.10
 
 concurrency:
   group: publish-helm-${{ github.event.release.tag_name || inputs.chart_version }}

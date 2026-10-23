@@ -76,6 +76,7 @@ export const MerchantInfo = ({
     merchant_type,
     default_dfsp,
     currency_code,
+    currencies,
     business_licenses,
     checkout_counters,
     locations,
@@ -128,9 +129,7 @@ export const MerchantInfo = ({
         data: {
           location_id: locationId,
           description: counterDescription.trim(),
-          ...(counterAlias.trim().length > 0
-            ? { alias_value: counterAlias.trim() }
-            : {}),
+          ...(counterAlias.trim().length > 0 ? { alias_value: counterAlias.trim() } : {}),
         },
       })
       setCounterDescription('')
@@ -207,7 +206,14 @@ export const MerchantInfo = ({
 
             <DetailsItem label='DFSP Name' value={default_dfsp?.name || 'N/A'} />
 
-            <DetailsItem label='Currency' value={currency_code?.iso_code || 'N/A'} />
+            <DetailsItem
+              label='Currencies'
+              value={
+                currencies?.length
+                  ? currencies.map(currency => currency.iso_code).join(', ')
+                  : currency_code?.iso_code || 'N/A'
+              }
+            />
 
             <DetailsItem
               label='Licence Number'
@@ -242,6 +248,8 @@ export const MerchantInfo = ({
 
             <DetailsItem label='Country' value={location?.country || 'N/A'} />
 
+            <DetailsItem label='City' value={location?.city_name || 'N/A'} />
+
             <DetailsItem
               label='Latitude Longitude'
               value={formatLatitudeLongitude(location?.latitude, location?.longitude)}
@@ -273,9 +281,11 @@ export const MerchantInfo = ({
 
             <DetailsItem label='Postal Code' value={location?.postal_code || 'N/A'} />
 
-            <DetailsItem label='Township' value={location?.town_name || 'N/A'} />
+            <DetailsItem label='Town' value={location?.town_name || 'N/A'} />
 
             <DetailsItem label='District' value={location?.district_name || 'N/A'} />
+
+            <DetailsItem label='Clan' value={location?.clan_name || 'N/A'} />
 
             <DetailsItem
               label='Country Subdivision'
@@ -409,10 +419,7 @@ export const MerchantInfo = ({
                   <Text fontSize='sm' fontWeight='semibold'>
                     Counter {counter.counter_number ?? index + 1}
                   </Text>
-                  <DetailsItem
-                    label='Description'
-                    value={counter.description || 'N/A'}
-                  />
+                  <DetailsItem label='Description' value={counter.description || 'N/A'} />
                   <DetailsItem
                     label='Location'
                     value={

@@ -28,6 +28,7 @@ import {
   merchantLeiConflictResponse,
   normalizeMerchantLei
 } from '../../services/merchantLei'
+import { assignMerchantCurrencies } from '../../utils/merchantCurrencies'
 
 /**
  * @openapi
@@ -65,6 +66,13 @@ import {
  *               currency_code:
  *                 type: string
  *                 example: "PHP"
+ *                 deprecated: true
+ *               currency_codes:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: string
+ *                 example: ["USD", "LRD"]
  *               category_code:
  *                 type: string
  *                 example: "10410"
@@ -314,7 +322,7 @@ function createMerchantEntity (merchantRepository: any, body: any, portalUser: a
   merchant.lei_normalized = body.lei.length > 0 ? body.lei : null
   merchant.employees_num = body.employees_num
   merchant.monthly_turnover = body.monthly_turnover
-  merchant.currency_code = body.currency_code
+  assignMerchantCurrencies(merchant, body)
   merchant.category_code = typeof body.category_code === 'string'
     ? body.category_code.trim()
     : body.category_code

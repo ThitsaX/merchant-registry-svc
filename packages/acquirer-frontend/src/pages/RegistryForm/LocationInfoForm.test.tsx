@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 
 import type { MerchantDetails } from '@/types/merchantDetails'
+import { locationInfoSchema } from '@/lib/validations/registry'
 import { createLocationInfoMerchant } from '@/__tests__/fixtures/merchantDetails'
 import TestWrapper from '@/__tests__/TestWrapper'
-import { locationInfoSchema } from '@/lib/validations/registry'
 import LocationInfoForm from './LocationInfoForm'
 
 const draft = createLocationInfoMerchant()
@@ -86,7 +86,7 @@ describe('LocationInfoForm', () => {
 
     expect(await screen.findByLabelText(/Location Type/)).toEqual(document.activeElement)
     expect(screen.getByText('Country is required')).toBeInTheDocument()
-    expect(screen.getByText('Township is required')).toBeInTheDocument()
+    expect(screen.getByText('Town is required')).toBeInTheDocument()
     expect(fn).not.toHaveBeenCalledWith('createLocationInfo')
   })
 
@@ -113,17 +113,20 @@ describe('LocationInfoForm', () => {
     const countryInput: HTMLSelectElement = screen.getByLabelText(/Country/, {
       selector: '[name="country"]',
     })
+    const cityInput: HTMLInputElement = screen.getByLabelText('City')
     const countrySubdivisionInput: HTMLSelectElement = screen.getByLabelText(
       'Country Subdivision (State/Divison)'
     )
     const districtInput: HTMLSelectElement = screen.getByLabelText('District')
-    const townshipInput: HTMLInputElement = screen.getByLabelText(/Township/, {
+    const townInput: HTMLInputElement = screen.getByLabelText(/Town/, {
       selector: '[name="town_name"]',
     })
+    const clanInput: HTMLInputElement = screen.getByLabelText('Clan')
     const longitudeInput: HTMLInputElement = screen.getByLabelText('Longitude')
     const latitudeInput: HTMLInputElement = screen.getByLabelText('Latitude')
-    const checkoutCounterDescriptionInput: HTMLInputElement =
-      screen.getByLabelText(/Checkout Counter Description/)
+    const checkoutCounterDescriptionInput: HTMLInputElement = screen.getByLabelText(
+      /Checkout Counter Description/
+    )
 
     expect(locationTypeInput.value).toEqual('Virtual')
     expect(websiteUrlInput.value).toEqual('https://www.example.com')
@@ -137,9 +140,11 @@ describe('LocationInfoForm', () => {
     expect(postBoxInput.value).toEqual('PO Box 123')
     expect(postalCodeInput.value).toEqual('12345')
     expect(countryInput.value).toEqual('Australia')
+    expect(cityInput.value).toEqual('')
     expect(countrySubdivisionInput.value).toEqual('Western Australia')
     expect(districtInput.value).toEqual('Perth')
-    expect(townshipInput.value).toEqual('Townsville')
+    expect(townInput.value).toEqual('Townsville')
+    expect(clanInput.value).toEqual('')
     expect(longitudeInput.value).toEqual('99')
     expect(latitudeInput.value).toEqual('331')
     expect(checkoutCounterDescriptionInput.value).toEqual('-')
@@ -148,10 +153,12 @@ describe('LocationInfoForm', () => {
   it('edits the primary alias only on the checkout-counter step', () => {
     draftData = createLocationInfoMerchant({
       locations: [],
-      checkout_counters: [{
-        ...draft.checkout_counters[0],
-        alias_value: 'LBR-MER-0001234',
-      }],
+      checkout_counters: [
+        {
+          ...draft.checkout_counters[0],
+          alias_value: 'LBR-MER-0001234',
+        },
+      ],
     })
 
     render(
@@ -178,10 +185,12 @@ describe('LocationInfoForm', () => {
 
     expect(result.success).toBe(false)
     if (result.success) return
-    expect(result.error.issues).toContainEqual(expect.objectContaining({
-      path: ['checkout_counters', 1, 'alias_value'],
-      message: 'Alias "counter-alias" is entered more than once',
-    }))
+    expect(result.error.issues).toContainEqual(
+      expect.objectContaining({
+        path: ['checkout_counters', 1, 'alias_value'],
+        message: 'Alias "counter-alias" is entered more than once',
+      })
+    )
   })
 
   it('shows a server-side duplicate alias error on the affected counter', async () => {
@@ -219,9 +228,11 @@ describe('LocationInfoForm', () => {
     })
     fireEvent.click(screen.getByText('Save and Proceed'))
 
-    expect(await screen.findByText(
-      'Checkout counter alias "COUNTER-EXISTING" is already registered'
-    )).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        'Checkout counter alias "COUNTER-EXISTING" is already registered'
+      )
+    ).toBeInTheDocument()
   })
 
   it('should reset the values of "Country Subdivision" and "District" when the value of "Country" is changed', () => {
@@ -280,9 +291,11 @@ describe('LocationInfoForm', () => {
     const countryInput: HTMLSelectElement = screen.getByLabelText(/Country/, {
       selector: '[name="country"]',
     })
-    const townshipInput: HTMLInputElement = screen.getByLabelText(/Township/, {
+    const townInput: HTMLInputElement = screen.getByLabelText(/Town/, {
       selector: '[name="town_name"]',
     })
+    const cityInput: HTMLInputElement = screen.getByLabelText('City')
+    const clanInput: HTMLInputElement = screen.getByLabelText('Clan')
     const counterDescriptionInput: HTMLInputElement = screen.getByLabelText(
       /Checkout Counter Description/
     )
@@ -290,7 +303,9 @@ describe('LocationInfoForm', () => {
 
     fireEvent.change(locationTypeInput, { target: { value: 'Virtual' } })
     fireEvent.change(countryInput, { target: { value: 'Australia' } })
-    fireEvent.change(townshipInput, { target: { value: 'Perth' } })
+    fireEvent.change(cityInput, { target: { value: 'Monrovia' } })
+    fireEvent.change(townInput, { target: { value: 'Perth' } })
+    fireEvent.change(clanInput, { target: { value: 'Vai' } })
     fireEvent.change(counterDescriptionInput, { target: { value: 'Main till' } })
     fireEvent.click(submitButton)
 
@@ -299,9 +314,9 @@ describe('LocationInfoForm', () => {
         'createLocationInfo',
         expect.objectContaining({
           params: expect.objectContaining({
-            checkout_counters: [
-              expect.objectContaining({ description: 'Main till' }),
-            ],
+            city_name: 'Monrovia',
+            clan_name: 'Vai',
+            checkout_counters: [expect.objectContaining({ description: 'Main till' })],
           }),
         })
       )
@@ -362,14 +377,12 @@ describe('LocationInfoForm', () => {
     fireEvent.change(screen.getByLabelText(/Location Type/), {
       target: { value: 'Physical' },
     })
-    fireEvent.change(
-      screen.getByLabelText(/Country/, { selector: '[name="country"]' }),
-      { target: { value: 'Australia' } }
-    )
-    fireEvent.change(
-      screen.getByLabelText(/Township/, { selector: '[name="town_name"]' }),
-      { target: { value: 'Perth' } }
-    )
+    fireEvent.change(screen.getByLabelText(/Country/, { selector: '[name="country"]' }), {
+      target: { value: 'Australia' },
+    })
+    fireEvent.change(screen.getByLabelText(/Town/, { selector: '[name="town_name"]' }), {
+      target: { value: 'Perth' },
+    })
     fireEvent.click(screen.getByText('Add counter'))
 
     const descriptions = screen.getAllByLabelText(/Checkout Counter Description/)
@@ -379,14 +392,16 @@ describe('LocationInfoForm', () => {
 
     await waitFor(() => {
       const payload = fn.mock.calls.find(call => call[0] === 'createLocationInfo')?.[1]
-      expect(payload).toEqual(expect.objectContaining({
-        params: expect.objectContaining({
-          checkout_counters: [
-            expect.objectContaining({ description: 'Main till' }),
-            expect.objectContaining({ description: 'Express till' }),
-          ],
-        }),
-      }))
+      expect(payload).toEqual(
+        expect.objectContaining({
+          params: expect.objectContaining({
+            checkout_counters: [
+              expect.objectContaining({ description: 'Main till' }),
+              expect.objectContaining({ description: 'Express till' }),
+            ],
+          }),
+        })
+      )
     })
   })
 })

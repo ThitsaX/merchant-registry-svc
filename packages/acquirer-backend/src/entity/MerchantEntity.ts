@@ -108,6 +108,14 @@ export class MerchantEntity {
   @JoinColumn({ name: 'currency_code' })
     currency_code!: CurrencyEntity
 
+  @ManyToMany(() => CurrencyEntity, currency => currency.accepting_merchants)
+  @JoinTable({
+    name: 'merchants_accepted_currencies',
+    joinColumn: { name: 'merchant_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'currency_code', referencedColumnName: 'iso_code' }
+  })
+    currencies!: CurrencyEntity[]
+
   @ManyToOne(
     () => MerchantCategoryEntity,
     merchantCategory => merchantCategory.merchants

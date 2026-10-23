@@ -17,7 +17,7 @@ stack.
 helm repo add thitsax https://thitsax.github.io/merchant-registry-svc
 helm repo update
 helm upgrade --install merchant-registry thitsax/merchant-registry \
-  --version 1.1.1 \
+  --version 1.1.10 \
   --namespace mojaloop \
   --values values.yaml
 ```
@@ -41,6 +41,17 @@ Publishing is handled by `.github/workflows/publish-helm.yml`. A GitHub release
 publishes a matching chart and application version. The manual workflow is used
 when the chart and application versions intentionally differ, such as chart
 `1.1.1` deploying application images `1.1.6`.
+
+## Version 1.1.10 (LIB-854)
+
+- Add Driver License to the business owner ID types.
+- Accept multiple currencies, including USD and LRD, in the portal.
+- Add optional City and Clan fields to merchant locations.
+
+The first selected currency remains the default for QR generation. Existing
+single-currency requests remain supported. Startup schema synchronization adds
+the accepted-currencies join table and nullable City/Clan columns; existing
+merchants retain their primary currency.
 
 For the first publication only, configure GitHub Pages to deploy from the
 `gh-pages` branch at `/ (root)`. Subsequent workflow runs update the packaged

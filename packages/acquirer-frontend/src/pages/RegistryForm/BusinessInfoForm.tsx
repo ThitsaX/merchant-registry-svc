@@ -30,7 +30,7 @@ import { businessInfoSchema, type BusinessInfoForm } from '@/lib/validations/reg
 import { useCreateBusinessInfo, useDraft, useUpdateBusinessInfo } from '@/api/hooks/forms'
 import { useMerchantId } from '@/hooks'
 import { CustomButton, FloatingSpinner } from '@/components/ui'
-import { FormDatalist, FormInput, FormSelect } from '@/components/form'
+import { FormDatalist, FormInput, FormMultiSelect, FormSelect } from '@/components/form'
 import FileUploadModal from './FileUploadModal'
 import GridShell from './GridShell'
 
@@ -108,6 +108,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
     resolver: zodResolver(businessInfoSchema),
     defaultValues: {
       license_document: null,
+      currency_codes: [],
     },
   })
 
@@ -134,6 +135,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
       mcc,
       merchant_type,
       currency_code,
+      currencies,
       business_licenses,
     } = draftData
 
@@ -148,7 +150,11 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
     merchant_category && setValue('category_code', merchant_category)
     mcc && setValue('mcc', mcc)
     merchant_type && setValue('merchant_type', merchant_type)
-    currency_code?.iso_code && setValue('currency_code', currency_code.iso_code)
+    const selectedCurrencyCodes = [
+      currency_code?.iso_code,
+      ...(currencies?.map(currency => currency.iso_code) ?? []),
+    ].filter((code, index, codes) => code !== undefined && codes.indexOf(code) === index)
+    setValue('currency_codes', selectedCurrencyCodes)
     setValue(
       'have_business_license',
       business_license?.license_number || business_license?.license_document_link
@@ -171,10 +177,7 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
   const showBusinessFieldError = (error: unknown) => {
     if (!isAxiosError<BusinessFieldErrorResponse>(error)) return
     const { field, message } = error.response?.data ?? {}
-    if (
-      field !== 'lei' ||
-      typeof message !== 'string'
-    ) return
+    if (field !== 'lei' || typeof message !== 'string') return
     setError(field, { type: 'server', message })
     setFocus(field)
   }
@@ -305,16 +308,16 @@ const BusinessInfoForm = ({ setActiveStep }: BusinessInfoFormProps) => {
             options={MERCHANT_TYPES}
           />
 
-          <FormSelect
+          <FormMultiSelect
             isRequired
-            name='currency_code'
-            register={register}
+            name='currency_codes'
+            control={control}
             errors={errors}
             label='Currency'
-            placeholder='Currency'
+            placeholder='Select currencies'
+            helperText='The first selected currency is the default used in QR codes.'
             options={CURRENCIES}
           />
-
         </GridShell>
 
         <GridShell justifyItems='center'>

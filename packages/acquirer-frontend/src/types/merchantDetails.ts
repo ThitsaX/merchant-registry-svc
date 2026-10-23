@@ -57,7 +57,9 @@ export type Location = {
   post_box: string
   postal_code: string
   town_name: string
+  city_name?: string
   district_name: string
+  clan_name?: string
   country_subdivision: string
   country: string
   address_line: string
@@ -113,6 +115,7 @@ export interface MerchantDetails {
   mcc?: string | null
   category_code: CategoryCode
   currency_code: CurrencyCode
+  currencies?: CurrencyCode[]
   allow_block_status: string
   registration_status: MerchantRegistrationStatus
   registration_status_reason: string | null

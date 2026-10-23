@@ -51,7 +51,9 @@ export async function merchantsToXlsxWorkbook (merchants: MerchantEntity[]): Pro
     { header: 'post_box', key: 'post_box', width: 32 },
     { header: 'postal_code', key: 'postal_code', width: 32 },
     { header: 'town_name', key: 'town_name', width: 32 },
+    { header: 'city_name', key: 'city_name', width: 32 },
     { header: 'district_name', key: 'district_name', width: 32 },
+    { header: 'clan_name', key: 'clan_name', width: 32 },
     { header: 'country_subdivision', key: 'country_subdivision', width: 32 },
     { header: 'country', key: 'country', width: 32 },
     { header: 'address_line', key: 'address_line', width: 32 },
@@ -98,6 +100,9 @@ export async function merchantsToXlsxWorkbook (merchants: MerchantEntity[]): Pro
   for (const merchant of merchants) {
     const category: ICategory = JSON.parse(JSON.stringify(merchant.category_code))
     const currency: ICurrency = JSON.parse(JSON.stringify(merchant.currency_code))
+    const acceptedCurrencies = merchant.currencies?.length > 0
+      ? merchant.currencies
+      : [currency]
     merchantsWorkbook.addRow({
       id: merchant.id,
       dba_trading_name: merchant.dba_trading_name,
@@ -110,7 +115,9 @@ export async function merchantsToXlsxWorkbook (merchants: MerchantEntity[]): Pro
       registration_status_reason: merchant.registration_status_reason,
       category: `${category.category_code} - ${category.description}`,
       mcc: merchant.mcc,
-      currency: `${currency.iso_code} - ${currency.description}`,
+      currency: acceptedCurrencies
+        .map(acceptedCurrency => `${acceptedCurrency.iso_code} - ${acceptedCurrency.description}`)
+        .join(', '),
       /* istanbul ignore next */
       license_number: merchant.business_licenses[0]?.license_number,
       /* istanbul ignore next */

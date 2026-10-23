@@ -196,6 +196,7 @@ async function createMerchants (
         employees_num: merchantRow.employees_num,
         monthly_turnover: merchantRow.monthly_turnover ?? '',
         currency_code: merchantRow.currency_code as any,
+        currencies: [{ iso_code: merchantRow.currency_code }],
         category_code: merchantRow.category_code as any,
         mcc: merchantRow.mcc,
         merchant_type: merchantRow.merchant_type,

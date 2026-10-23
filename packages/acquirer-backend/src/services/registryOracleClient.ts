@@ -259,9 +259,11 @@ async function generateQRImageForAlias (
       select: ['code']
     })
 
-    const merchantCity = checkoutCounter?.checkout_location?.town_name ??
-      checkoutCounter?.checkout_location?.district_name ??
-      ''
+    const merchantCity = [
+      checkoutCounter?.checkout_location?.city_name,
+      checkoutCounter?.checkout_location?.town_name,
+      checkoutCounter?.checkout_location?.district_name
+    ].find(value => value !== undefined && value !== null && value.trim().length > 0) ?? ''
     const emvcoQRString = getEMVQRCodeText({
       globallyUniqueIdentifier: EMVCO_MERCHANT_ACCOUNT_GUI,
       checkoutCounterAliasValue: aliasData.alias_value,

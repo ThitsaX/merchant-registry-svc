@@ -30,6 +30,7 @@ import {
   isRequestedMerchantAliasAvailable,
   saveRequestedMerchantAlias
 } from '../../services/merchantAlias'
+import { assignMerchantCurrencies } from '../../utils/merchantCurrencies'
 /**
  * @openapi
  * /merchants/{id}/draft:
@@ -73,6 +74,13 @@ import {
  *               currency_code:
  *                 type: string
  *                 example: "PHP"
+ *                 deprecated: true
+ *               currency_codes:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: string
+ *                 example: ["USD", "LRD"]
  *               category_code:
  *                 type: string
  *                 example: "10410"
@@ -172,7 +180,7 @@ export async function putMerchantDraft (req: AuthRequest, res: Response) {
   const merchantRepository = AppDataSource.getRepository(MerchantEntity)
   const merchant = await merchantRepository.findOne({
     where: { id },
-    relations: ['business_licenses', 'dfsps', 'checkout_counters']
+    relations: ['business_licenses', 'dfsps', 'checkout_counters', 'currencies']
   })
 
   if (merchant === null) {
@@ -309,7 +317,7 @@ trying to access unauthorized(different DFSP) merchant ${merchant.id}`,
   merchant.gleif_verified_at = req.body.lei.length > 0 ? new Date() : null
   merchant.employees_num = req.body.employees_num
   merchant.monthly_turnover = req.body.monthly_turnover
-  merchant.currency_code = req.body.currency_code
+  assignMerchantCurrencies(merchant, req.body)
   merchant.category_code = typeof req.body.category_code === 'string'
     ? req.body.category_code.trim()
     : req.body.category_code

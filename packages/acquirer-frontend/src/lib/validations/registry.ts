@@ -3,10 +3,10 @@ import {
   BusinessOwnerIDType,
   CurrencyCodes,
   isMerchantCategoryCode,
-    isMerchantClassificationCode,
-    MERCHANT_ALIAS_MAX_LENGTH,
-    MERCHANT_ALIAS_PATTERN,
-    MerchantLocationType,
+  isMerchantClassificationCode,
+  MERCHANT_ALIAS_MAX_LENGTH,
+  MERCHANT_ALIAS_PATTERN,
+  MerchantLocationType,
   MerchantType,
   NumberOfEmployees,
 } from 'shared-lib'
@@ -38,7 +38,9 @@ export const businessInfoSchema = z
       .string()
       .trim()
       .min(1, { message: 'Please select a business activity' })
-      .refine(isMerchantCategoryCode, { message: 'Select a supported business activity' }),
+      .refine(isMerchantCategoryCode, {
+        message: 'Select a supported business activity',
+      }),
     mcc: z
       .string()
       .trim()
@@ -48,9 +50,9 @@ export const businessInfoSchema = z
     merchant_type: z.nativeEnum(MerchantType, {
       errorMap: () => ({ message: 'Please select a merchant type' }),
     }),
-    currency_code: z.nativeEnum(CurrencyCodes, {
-      errorMap: () => ({ message: 'Please select a currency' }),
-    }),
+    currency_codes: z
+      .array(z.nativeEnum(CurrencyCodes))
+      .min(1, { message: 'Please select at least one currency' }),
     have_business_license: z.union([z.literal('yes'), z.literal('no')]).or(z.undefined()),
     license_number: z.string().optional(),
     license_document: z.custom<File>(val => val instanceof File).or(z.null()),
@@ -86,8 +88,10 @@ export const locationInfoSchema = z.object({
   post_box: z.string().optional(),
   postal_code: z.string().optional(),
   country: z.string().trim().min(1, { message: 'Country is required' }),
-  town_name: z.string().trim().min(1, { message: 'Township is required' }),
+  town_name: z.string().trim().min(1, { message: 'Town is required' }),
+  city_name: z.string().optional(),
   district_name: z.string().optional(),
+  clan_name: z.string().optional(),
   country_subdivision: z.string().optional(),
   address_line: z.string().optional(),
   latitude: z.string().optional(),

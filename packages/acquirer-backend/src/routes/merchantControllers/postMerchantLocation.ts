@@ -84,9 +84,15 @@ import {
  *               town_name:
  *                 type: string
  *                 example: "Townsville"
+ *               city_name:
+ *                 type: string
+ *                 example: "Monrovia"
  *               district_name:
  *                 type: string
  *                 example: "District 1"
+ *               clan_name:
+ *                 type: string
+ *                 example: "Vai"
  *               country_subdivision:
  *                 type: string
  *                 example: "State"

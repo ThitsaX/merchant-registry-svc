@@ -74,5 +74,6 @@ export enum NumberOfEmployees {
 export enum BusinessOwnerIDType {
   PASSPORT = 'Passport',
   NATIONAL_ID = 'National ID',
+  DRIVER_LICENSE = 'Driver License',
   SSN = 'SSN',
 }

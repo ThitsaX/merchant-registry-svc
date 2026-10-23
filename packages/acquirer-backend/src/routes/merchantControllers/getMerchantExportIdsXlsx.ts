@@ -100,6 +100,7 @@ export async function exportMerchantIdsXlsx (req: AuthRequest, res: Response) {
         'locations',
         'category_code',
         'currency_code',
+        'currencies',
         'checkout_counters',
         'checkout_counters.checkout_location',
         'business_licenses',

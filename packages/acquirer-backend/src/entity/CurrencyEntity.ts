@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, OneToMany } from 'typeorm'
+import { Entity, Column, PrimaryColumn, OneToMany, ManyToMany } from 'typeorm'
 import { MerchantEntity } from './MerchantEntity'
 
 @Entity('currencies')
@@ -11,4 +11,7 @@ export class CurrencyEntity {
 
   @OneToMany(() => MerchantEntity, merchant => merchant.currency_code)
     merchants!: MerchantEntity[]
+
+  @ManyToMany(() => MerchantEntity, merchant => merchant.currencies)
+    accepting_merchants!: MerchantEntity[]
 }

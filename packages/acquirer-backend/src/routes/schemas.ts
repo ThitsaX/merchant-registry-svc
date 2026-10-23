@@ -30,6 +30,10 @@ export const MerchantSubmitDataSchema = z.object({
   employees_num: z.nativeEnum(NumberOfEmployees).optional(),
   monthly_turnover: z.string().nullable().default(null),
   currency_code: z.nativeEnum(CurrencyCodes).optional(),
+  currency_codes: z.preprocess(
+    value => typeof value === 'string' ? [value] : value,
+    z.array(z.nativeEnum(CurrencyCodes)).min(1).optional()
+  ),
   category_code: z
     .string()
     .trim()
@@ -78,10 +82,12 @@ export const MerchantLocationSubmitDataSchema = z.object({
   post_box: z.string().optional(),
   postal_code: z.string().optional(),
   town_name: z
-    .string({ required_error: 'Township is required' })
+    .string({ required_error: 'Town is required' })
     .trim()
-    .min(1, { message: 'Township is required' }),
+    .min(1, { message: 'Town is required' }),
+  city_name: z.string().optional(),
   district_name: z.string().optional(),
+  clan_name: z.string().optional(),
   country_subdivision: z.string().optional(),
   address_line: z.string().optional(),
   latitude: z.string().optional(),
